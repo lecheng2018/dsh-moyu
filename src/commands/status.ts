@@ -1,7 +1,7 @@
 /**
  * 状态命令：/bot-status（QQBot 特有）
  *
- * 会话状态 + 健康面板（风险门/主动配额/暂存箱/meme 桥）一行一个，
+ * 会话状态 + 健康面板（主动配额/暂存箱/meme 桥）一行一个，
  * 远程运维时一眼确认插件各子系统状态。
  */
 import type { CommandDeps, CategorizedCommand } from './types.ts';
@@ -33,11 +33,9 @@ export function statusCommand({ manager }: CommandDeps): CategorizedCommand {
       }
 
       // ── 健康面板 ──
-      const gate = manager.riskGateInfo;
       lines.push(
         '',
         '🩺 健康面板',
-        `风险门: ${gate?.enabled ? `已启用（阈值 ${gate.level}，高危工具调用需 QQ 审批）` : '关闭'}`,
       );
       const budget = manager.proactiveBudget;
       if (budget) {

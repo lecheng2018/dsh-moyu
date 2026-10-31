@@ -62,26 +62,6 @@ export interface ProactiveConfig {
   perTargetDaily: number;
 }
 
-/** 工具风险规则（tool 名 + arguments JSON 正则 + 风险级） */
-export interface RiskRule {
-  /** 工具名（如 bash / write / send_message） */
-  tool: string;
-  /** 对 arguments JSON 串匹配的正则（空串 = 恒命中） */
-  args?: string;
-  /** 风险级别 */
-  risk: 'low' | 'medium' | 'high';
-}
-
-/** QQ 会话工具风险门（tools/pre-execute → approval seam → QQ 按钮） */
-export interface RiskGateConfig {
-  /** 是否启用风险门 */
-  enabled: boolean;
-  /** 触发审批的最低风险级别（high=仅高危，medium=中危也拦） */
-  level: 'medium' | 'high';
-  /** 追加规则（在内置默认规则之后匹配，适合补充自有工具） */
-  extraRules: RiskRule[];
-}
-
 export interface ImQQBotConfig {
   /** QQ Bot AppID */
   appId: string;
@@ -129,8 +109,6 @@ export interface ImQQBotConfig {
   sendFile: SendFileConfig;
   /** 主动消息每日配额（被动回复不受限） */
   proactive: ProactiveConfig;
-  /** QQ 会话工具风险门（高危调用先弹 QQ 审批） */
-  riskGate: RiskGateConfig;
 }
 
 /** 访问控制子 Schema（独立导出：config 路由的服务端校验复用） */
@@ -212,17 +190,4 @@ export const ConfigSchema: Schema<ImQQBotConfig> = Schema.object({
     globalDaily: 20,
     perTargetDaily: 4,
   }).description('主动消息每日配额'),
-  riskGate: Schema.object({
-    enabled: Schema.boolean().default(true).description('是否启用 QQ 会话工具风险门（高危工具调用先弹 QQ 审批按钮）'),
-    level: Schema.union(['medium', 'high']).default('high').description('触发审批的最低风险级别（high=仅高危；medium=中危如 rm -rf/sudo/写文件也拦）'),
-    extraRules: Schema.array(Schema.object({
-      tool: Schema.string().required(),
-      args: Schema.string().description('对工具参数 JSON 匹配的正则，空=恒命中'),
-      risk: Schema.union(['low', 'medium', 'high']).required(),
-    })).default([]).description('追加风险规则（在默认规则之后匹配，适合补充自有工具）'),
-  }).default({
-    enabled: true,
-    level: 'high',
-    extraRules: [],
-  }).description('QQ 会话工具风险门'),
 });

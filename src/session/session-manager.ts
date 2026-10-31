@@ -118,6 +118,8 @@ export class SessionManager {
   public proactiveBudget?: ProactiveBudget;
   /** 由 bootstrap 注入的主动消息暂存箱（被预算拦下的推送等用户来消息时补发） */
   public proactiveQueue?: ProactiveQueue;
+  /** 由 bootstrap 注入的单聊主动消息开关感知（C2C_MSG_REJECT/RECEIVE） */
+  public proactivePermission?: import('../features/proactive-permission.ts').ProactivePermission;
   /** 由 bootstrap 注入的运行时元信息（/bot-status 健康面板用） */
   public memeRoots: string[] = [];
 

@@ -38,8 +38,8 @@ interface SendFileArgs {
   target?: string;
 }
 
-/** 解析显式 target（"c2c:openid" / "group:openid"），非法返回 undefined */
-function parseTarget(input: string): ReplyTarget | undefined {
+/** 解析显式 target（"c2c:openid" / "group:openid"），非法返回 undefined（qqbot_send_card 工具共用） */
+export function parseTarget(input: string): ReplyTarget | undefined {
   const idx = input.indexOf(':');
   if (idx <= 0) return undefined;
   const scope = input.slice(0, idx);

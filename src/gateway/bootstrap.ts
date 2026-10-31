@@ -21,6 +21,7 @@ import { decodeButtonData } from '../features/button-utils.ts';
 import { discoverMemeRoots, seedMemeDefaults } from '../features/meme-bridge.ts';
 import { ProactiveBudget } from '../transport/proactive-budget.ts';
 import { ProactiveQueue } from '../transport/proactive-queue.ts';
+import { ProactivePermission } from '../features/proactive-permission.ts';
 import { PLUGIN_HOME } from '../shared/dirs.ts';
 import { buildUserAgent } from '../shared/index.ts';
 import type { ImQQBotConfig } from '../config.ts';
@@ -30,6 +31,7 @@ import { setupMiddlewares } from './middleware-setup.ts';
 import { startMediaCleanup } from '../media/media-cleaner.ts';
 import { ensureVisionInputModal, registerDescribeImageTool } from '../media/vision-tool.ts';
 import { registerSendFileTool, type MediaSenderLike } from '../media/send-file-tool.ts';
+import { registerSendCardTool } from '../media/send-card-tool.ts';
 import { DeliverablesDeliverer } from '../transport/deliverables.ts';
 
 /**
@@ -132,6 +134,11 @@ export async function bootstrapGateway(
     ? new ProactiveQueue(resolve(PLUGIN_HOME, 'proactive-outbox.json'))
     : undefined;
   manager.proactiveQueue = proactiveQueue;
+  // 单聊主动消息开关感知：用户在 QQ 关掉「允许机器人主动发消息」→ 推送直接走暂存，不再白发
+  const proactivePermission = config.proactive.enabled
+    ? new ProactivePermission(resolve(PLUGIN_HOME, 'proactive-permission.json'), logger)
+    : undefined;
+  manager.proactivePermission = proactivePermission;
   const gateProactive = <T>(
     target: ReplyTarget,
     resolved: ReplyTarget,
@@ -145,6 +152,12 @@ export async function bootstrapGateway(
     const isProactive = resolved.msgId === undefined && resolved.eventId === undefined;
     if (!isProactive) return attempt.normal();
     const budgetPath = (): Promise<T> => {
+      // 用户在 QQ 关闭了「允许机器人主动发消息」→ 直接走暂存/报错，不再撞平台错误；
+      // 重新开启（C2C_MSG_RECEIVE）后暂存箱随补发自然送达
+      if (target.scope === 'c2c' && proactivePermission?.isRejected(target.targetId)) {
+        logger.warn(`proactive-permission: 对方已关闭主动消息 → ${target.scope}:${target.targetId} 跳过直发`);
+        return Promise.resolve(attempt.onBlocked());
+      }
       if (!proactiveBudget) return attempt.normal();
       const check = proactiveBudget.tryConsume(target.scope, target.targetId);
       if (!check.ok) {
@@ -262,6 +275,17 @@ export async function bootstrapGateway(
     await bot.acknowledgeInteraction(event.id, matched ? 0 : 3).catch(() => {});
   });
 
+  // ── 单聊主动消息开关感知（C2C_MSG_REJECT / C2C_MSG_RECEIVE，GROUP_AND_C2C_EVENT intent） ──
+  bot.on('rawEvent', (ctx) => {
+    const eventType = (ctx as { eventType?: string }).eventType;
+    if (eventType !== 'C2C_MSG_REJECT' && eventType !== 'C2C_MSG_RECEIVE') return;
+    const data = (ctx as { data?: Record<string, unknown> }).data ?? {};
+    const author = data.author as { user_openid?: string } | undefined;
+    const openid = String(data.user_openid ?? data.openid ?? author?.user_openid ?? '');
+    if (!openid) return;
+    proactivePermission?.setRejected(openid, eventType === 'C2C_MSG_REJECT');
+  });
+
   bot.on('error', (err: unknown) => {
     logger.error(`bot error: ${err instanceof Error ? err.message : String(err)}`);
   });
@@ -297,6 +321,19 @@ export async function bootstrapGateway(
 
   // ── 附件发送工具注册（qqbot_send_file，发送器见上方 mediaSender） ──
   registerSendFileTool(ctx, mediaSender, manager, effectiveConfig, logger);
+
+  // ── 图文卡片工具注册（qqbot_send_card，msg_type=8） ──
+  // 发送路径与文本一致：被动窗口内带 msg_id（免费）；主动时过互动召回/预算闸门，被拦抛错给模型
+  registerSendCardTool(ctx, {
+    sendCard: (target, card) => {
+      const resolved = resolveReplyTarget(target, replyLimiter, false);
+      return gateProactive(target, resolved, {
+        normal: () => bot.send({ target: resolved, extra: { msg_type: 8, card } }),
+        onBlocked: BLOCKED_THROW,
+      });
+    },
+    manager,
+  }, logger);
 
   // ── 生命周期 ──
   (ctx as unknown as { effect(fn: () => (() => Promise<void>) | void, name?: string): void })

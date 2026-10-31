@@ -37,6 +37,10 @@ export function statusCommand({ manager }: CommandDeps): CategorizedCommand {
         '',
         '🩺 健康面板',
       );
+      if (scope === 'c2c') {
+        const rejected = manager.proactivePermission?.isRejected(peerId) ?? false;
+        lines.push(`主动推送: ${rejected ? '⚠️ 对方已关闭「允许机器人主动发消息」，推送进暂存箱' : '正常（互动召回优先）'}`);
+      }
       const budget = manager.proactiveBudget;
       if (budget) {
         const snap = budget.snapshot(scope, peerId);

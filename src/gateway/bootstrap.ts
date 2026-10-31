@@ -105,22 +105,34 @@ export async function bootstrapGateway(
 
   // ── 主动消息预算闸门 ──
   // resolveReplyTarget 返回的目标不带 msg_id/event_id = 三级兜底走到第 3 级（主动推送），
-  // 此时消耗每日配额；任一维度用尽则跳过发送（不 throw：出站错误路径的重发会放大消耗）。
+  // 此时消耗每日配额。被拦时的处置因调用方而异（onBlocked）：
+  //   - 文本出站：静默跳过（返回 {skipped} 哨兵；出站错误路径的重发会放大消耗，不 throw）
+  //   - 媒体发送：抛错 —— sendMediaFile 的 catch 会转成 outcome:'failed' 透传给
+  //     qqbot_send_file 工具结果/交付物日志，让模型明确知道没发出去
   // 被动回复（带 msg_id/event_id）不受限。
   const proactiveBudget = config.proactive.enabled
     ? new ProactiveBudget(resolve(PLUGIN_HOME, 'proactive-budget.json'), config.proactive)
     : undefined;
   manager.proactiveBudget = proactiveBudget;
-  const gateProactive = <T>(target: ReplyTarget, resolved: ReplyTarget, doSend: () => Promise<T>): Promise<T | { skipped: string }> => {
+  const gateProactive = <T>(
+    target: ReplyTarget,
+    resolved: ReplyTarget,
+    doSend: () => Promise<T>,
+    onBlocked: () => T,
+  ): Promise<T> => {
     if (!proactiveBudget) return doSend();
     if (resolved.msgId === undefined && resolved.eventId === undefined) {
       const check = proactiveBudget.tryConsume(target.scope, target.targetId);
       if (!check.ok) {
         logger.warn(`proactive-budget: 主动推送被拦（${check.reason === 'global' ? '全局额度' : '单目标额度'}用尽）→ ${target.scope}:${target.targetId}`);
-        return Promise.resolve({ skipped: 'proactive-budget' });
+        return Promise.resolve(onBlocked());
       }
     }
     return doSend();
+  };
+  const BLOCKED_SKIP = { skipped: 'proactive-budget' };
+  const BLOCKED_THROW = (): never => {
+    throw new Error('主动消息每日配额已用尽（proactive budget exhausted），请明天再试或提高 proactive 配置');
   };
 
   // 发送适配器：将 QQBot 实例适配为 QQBotSender（openStream 参数形态不同）。
@@ -129,7 +141,7 @@ export async function bootstrapGateway(
   const sender: QQBotSender = {
     sendMarkdown: (target, content, opts) => {
       const resolved = resolveReplyTarget(target, replyLimiter, true);
-      return gateProactive(target, resolved, () => sendResolvedMarkdown(bot, resolved, content, opts));
+      return gateProactive(target, resolved, () => sendResolvedMarkdown(bot, resolved, content, opts), () => BLOCKED_SKIP);
     },
     openStream: (target) => bot.openStream({
       target: {
@@ -146,19 +158,19 @@ export async function bootstrapGateway(
   const mediaSender: MediaSenderLike = {
     sendImage: (target, source) => {
       const resolved = resolveReplyTarget(target, replyLimiter, false);
-      return gateProactive(target, resolved, () => bot.sendImage(resolved, source));
+      return gateProactive(target, resolved, () => bot.sendImage(resolved, source), BLOCKED_THROW);
     },
     sendVideo: (target, source) => {
       const resolved = resolveReplyTarget(target, replyLimiter, false);
-      return gateProactive(target, resolved, () => bot.sendVideo(resolved, source));
+      return gateProactive(target, resolved, () => bot.sendVideo(resolved, source), BLOCKED_THROW);
     },
     sendVoice: (target, source) => {
       const resolved = resolveReplyTarget(target, replyLimiter, false);
-      return gateProactive(target, resolved, () => bot.sendVoice(resolved, source));
+      return gateProactive(target, resolved, () => bot.sendVoice(resolved, source), BLOCKED_THROW);
     },
     sendFile: (target, source, opts) => {
       const resolved = resolveReplyTarget(target, replyLimiter, false);
-      return gateProactive(target, resolved, () => bot.sendFile(resolved, source, opts));
+      return gateProactive(target, resolved, () => bot.sendFile(resolved, source, opts), BLOCKED_THROW);
     },
   };
 

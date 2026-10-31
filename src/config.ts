@@ -183,11 +183,11 @@ export const ConfigSchema: Schema<ImQQBotConfig> = Schema.object({
   }).description('附件发送配置'),
   proactive: Schema.object({
     enabled: Schema.boolean().default(true).description('是否启用主动消息预算闸门（被动回复不受限）'),
-    globalDaily: Schema.number().default(20).description('全局每日主动消息上限（0 = 不限）'),
-    perTargetDaily: Schema.number().default(4).description('单目标每日主动消息上限（0 = 不限）'),
+    globalDaily: Schema.number().default(20).description('全局每日主动消息上限（0 = 不限；平台 bot 级月度额度约 1000 条，按天 20 保守）'),
+    perTargetDaily: Schema.number().default(1).description('单目标每日主动消息上限（0 = 不限；平台「互动召回」对单用户是 30 天内 4 个周期各 1 条，当天仅 1 条名额，故默认 1）'),
   }).default({
     enabled: true,
     globalDaily: 20,
-    perTargetDaily: 4,
+    perTargetDaily: 1,
   }).description('主动消息每日配额'),
 });

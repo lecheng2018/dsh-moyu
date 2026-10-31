@@ -20,9 +20,13 @@ import { dirname } from 'node:path';
 import type { ChatScope } from '../types.ts';
 
 export interface ProactiveBudgetOptions {
-  /** 全局每日主动消息上限（0 = 不限） */
+  /** 全局每日主动消息上限（0 = 不限；平台 bot 级月度额度约 1000 条，按天 20 保守） */
   globalDaily: number;
-  /** 单目标（c2c:openid / group:openid）每日主动消息上限（0 = 不限） */
+  /**
+   * 单目标每日主动消息上限（0 = 不限）。
+   * 平台「互动召回」对单用户是 30 天内 4 个周期（当天/1-3天/3-7天/7-30天）
+   * 各 1 条 —— 当天只有 1 条名额，默认 1 对齐这个节奏，避免同日连发撞 304023。
+   */
   perTargetDaily: number;
 }
 

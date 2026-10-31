@@ -66,8 +66,7 @@ describe('ProactiveBudget', () => {
 
 describe('ProactiveBudget wakeup counter', () => {
   it('recordWakeup 独立计数、跨进程持久化、不占用主动额度', () => {
-    const f = join(dir, 'nested', 'wakeup.json');
-    rmSync(f, { force: true });
+    const f = join(mkdtempSync(join(tmpdir(), 'proactive-wakeup-')), 'wakeup.json');
     const b = new ProactiveBudget(f, { globalDaily: 1, perTargetDaily: 1 });
     b.recordWakeup();
     b.recordWakeup();

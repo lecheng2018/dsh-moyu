@@ -93,7 +93,9 @@ export class ProactiveBudget {
 
   /**
    * 尝试消耗一次主动推送额度。
-   * 通过 → 计数+持久化，返回 ok=true 与剩余额度；任一维度超限 → 记 skipped 并拒绝。
+   * 通过 → 计数+持久化，返回 ok=true 与**消耗后**剩余额度；任一维度超限 →
+   * 记 skipped 并拒绝。注意 ok 反映的是准入决策：这次发送本身获准后即使
+   * 恰好把额度用光，也必须返回 ok=true（剩余为 0），否则调用方会误判为被拦。
    */
   tryConsume(scope: ChatScope, targetId: string): BudgetCheck {
     const check = this.check(scope, targetId);
@@ -106,7 +108,22 @@ export class ProactiveBudget {
     const key = this.targetKey(scope, targetId);
     this.state.targets[key] = (this.state.targets[key] ?? 0) + 1;
     this.persist();
-    return this.check(scope, targetId);
+    return {
+      ok: true,
+      remainingGlobal: this.remainingGlobal(),
+      remainingTarget: this.remainingTarget(scope, targetId),
+    };
+  }
+
+  private remainingGlobal(): number | null {
+    const g = this.opts.globalDaily;
+    return g > 0 ? Math.max(0, g - this.state.globalUsed) : null;
+  }
+
+  private remainingTarget(scope: ChatScope, targetId: string): number | null {
+    const t = this.opts.perTargetDaily;
+    if (t <= 0) return null;
+    return Math.max(0, t - (this.state.targets[this.targetKey(scope, targetId)] ?? 0));
   }
 
   /** 只读检查（不消耗）：两维度都未超限才放行 */

@@ -30,7 +30,7 @@ describe('parseAnswer', () => {
   });
 
   it('「选」前缀 + 混合字母数字', () => {
-    expect(parseAnswer(makeQuestion(), '选 1 3')).toEqual({ id: 'q1', selected: ['方案甲', '方案丙'] });
+    expect(parseAnswer(makeQuestion({ multiSelect: true }), '选 1 3')).toEqual({ id: 'q1', selected: ['方案甲', '方案丙'] });
     expect(parseAnswer(makeQuestion({ multiSelect: true }), '选A')).toEqual({ id: 'q1', selected: ['方案甲'] });
   });
 

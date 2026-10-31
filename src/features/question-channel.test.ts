@@ -63,16 +63,16 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 const q2 = (id = 'q'): UserQuestion => ({ id, question: '选哪个？', options: [{ label: 'A' }, { label: 'B' }] });
 
 describe('formatQuestion', () => {
-  it('renders numbered options with description and text hint', () => {
+  it('renders lettered options with description and text hint', () => {
     const q: UserQuestion = {
       id: 'q',
       question: '选哪个？',
       options: [{ label: 'A', description: '描述A' }, { label: 'B' }],
     };
     const text = formatQuestion(q, false, false);
-    expect(text).toContain('1. A · 描述A');
-    expect(text).toContain('2. B');
-    expect(text).toContain('> 💡 回复编号选择');
+    expect(text).toContain('A. A · 描述A');
+    expect(text).toContain('B. B');
+    expect(text).toContain('> 💡 回复字母或编号选择');
     expect(text).toContain('直接输入你的想法');
   });
 
@@ -84,7 +84,7 @@ describe('formatQuestion', () => {
     const q: UserQuestion = { id: 'q', question: '选哪些？', options: [{ label: 'A' }, { label: 'B' }], multiSelect: true };
     const text = formatQuestion(q, false, false);
     expect(text).toContain('选哪些？（可多选）');
-    expect(text).toContain('> 💡 回复多个编号即可多选（如 1,3）');
+    expect(text).toContain('> 💡 回复多个字母或编号即可多选（如 A,C）');
   });
 
   it('adds @mention note for groups', () => {
@@ -104,7 +104,7 @@ describe('buildKeyboard', () => {
     expect(btn?.group_id).toBe('q-q');
     // 保留 click_limit=1（每人限点一次，与 openclaw 对齐）
     expect(btn?.action.click_limit).toBe(1);
-    expect(btn?.render_data.label).toBe('A');
+    expect(btn?.render_data.label).toBe('A. A');
     expect(btn?.render_data.visited_label).toBe('✓ 已选');
     // button_data 同时编码 question.id 与选项下标，供 handleInteraction 校验归属题
     expect(btn?.id).toBe('q-q-opt-0');
@@ -207,7 +207,7 @@ describe('QuestionChannel.askViaQQ', () => {
     await sleep(20);
     expect(sent).toHaveLength(1);
     expect(sent[0]?.opts).toBeUndefined();
-    expect(sent[0]?.text).toContain('回复编号选择');
+    expect(sent[0]?.text).toContain('回复字母或编号选择');
     ch.tryAnswer('c2c', 'U1', '1');
     await p;
   });

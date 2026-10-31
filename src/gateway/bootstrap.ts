@@ -17,6 +17,7 @@ import type { ToolsRegistryLike } from '../transport/tool-presenter.ts';
 import type { QQBotSender } from '../transport/outbound-buffer.ts';
 import { QuestionChannel } from '../features/question-channel.ts';
 import { ApprovalChannel, type ApprovalChannelContext } from '../features/approval-channel.ts';
+import { RiskGate } from '../features/risk-gate.ts';
 import { decodeButtonData } from '../features/button-utils.ts';
 import { discoverMemeRoots, seedMemeDefaults } from '../features/meme-bridge.ts';
 import { ProactiveBudget } from '../transport/proactive-budget.ts';
@@ -67,6 +68,8 @@ export async function bootstrapGateway(
   };
 
   const manager = new SessionManager(ctx, agents, effectiveConfig, logger);
+  manager.riskGateInfo = { enabled: effectiveConfig.riskGate.enabled, level: effectiveConfig.riskGate.level };
+  manager.memeRoots = memeRoots;
 
   // ── 初始化 QQ Bot SDK ──
   const userAgent = buildUserAgent();
@@ -216,6 +219,10 @@ export async function bootstrapGateway(
   const questionChannel = new QuestionChannel(manager, sender, effectiveConfig, logger);
   manager.questionChannel = questionChannel;
   questionChannel.install(ctx);
+
+  // ── 工具风险门（tools/pre-execute 判风险 → approval seam → 上面的 QQ 审批按钮） ──
+  const riskGate = new RiskGate(manager, effectiveConfig.riskGate, logger);
+  riskGate.install(ctx);
 
   // ── 审批通道（approval/request → QQ 两按钮审批） ──
   const approvalChannel = new ApprovalChannel(manager, sender, effectiveConfig, logger);

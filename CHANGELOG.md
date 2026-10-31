@@ -2,6 +2,11 @@
 
 > [English](./CHANGELOG_EN.md)
 
+## [0.5.5-zhoukai.3] - 2026-10-31
+
+### 新增
+- **QQ 会话工具风险门**（features/risk-gate）：监听 dsh-tools 的 `tools/pre-execute` waterfall，QQ 会话的工具调用按规则评估风险，达到阈值返回 `{kind:'ask'}` 走 approval seam，由官方 QQ 两按钮审批卡承接（Web/CLI 不受影响，不双弹窗）。默认阈值 high（rm -rf 系统路径/mkfs/curl|sh/chmod 777/sudo 关机/对外 send_message 等）；level 调到 medium 时 rm -rf、sudo、kill -9、docker prune、write/edit 也拦。内置「显式 low」规则防审批疲劳（装依赖/常规 git/node_modules 清理不拦）；`extraRules` 可补充自有工具。对齐「发送必须审批」的远程派活纪律
+- **/bot-status 升级为健康面板**：会话状态 + 风险门状态 + 主动配额余量 + 暂存待补发 + meme 桥放行目录数，一行一个
 ## [0.5.5-zhoukai.2] - 2026-10-31
 
 ### 新增

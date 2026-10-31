@@ -118,6 +118,9 @@ export class SessionManager {
   public proactiveBudget?: ProactiveBudget;
   /** 由 bootstrap 注入的主动消息暂存箱（被预算拦下的推送等用户来消息时补发） */
   public proactiveQueue?: ProactiveQueue;
+  /** 由 bootstrap 注入的运行时元信息（/bot-status 健康面板用） */
+  public riskGateInfo?: { enabled: boolean; level: string };
+  public memeRoots: string[] = [];
 
   constructor(
     ctx: Context,

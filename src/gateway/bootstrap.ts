@@ -20,6 +20,7 @@ import { ApprovalChannel, type ApprovalChannelContext } from '../features/approv
 import { decodeButtonData } from '../features/button-utils.ts';
 import { discoverMemeRoots, seedMemeDefaults } from '../features/meme-bridge.ts';
 import { ProactiveBudget } from '../transport/proactive-budget.ts';
+import { ProactiveQueue } from '../transport/proactive-queue.ts';
 import { PLUGIN_HOME } from '../shared/dirs.ts';
 import { buildUserAgent } from '../shared/index.ts';
 import type { ImQQBotConfig } from '../config.ts';
@@ -88,6 +89,17 @@ export async function bootstrapGateway(
     const msg = mCtx.message;
     // 记录最近 msgId，供无上下文的出站发送（文件发送显式 target、主动推送等）获取被动回复目标
     cacheMsgId(mCtx.replyTarget.scope, mCtx.replyTarget.targetId, mCtx.replyTarget.msgId);
+    // 用户来了 → 被动窗口开启 → 先把被预算拦下的主动消息补发掉（走被动通道，不耗配额）
+    if (proactiveQueue) {
+      try {
+        await proactiveQueue.flush(mCtx.replyTarget, (text) => {
+          const resolved = resolveReplyTarget(mCtx.replyTarget, replyLimiter, true);
+          return sendResolvedMarkdown(bot, resolved, text);
+        }, logger);
+      } catch (err) {
+        logger.warn(`proactive-queue: flush failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
     if (config.debug) {
       logger.debug(`← message (post-middleware): ${JSON.stringify(msg, null, 2).slice(0, 500)}`);
     }
@@ -114,6 +126,11 @@ export async function bootstrapGateway(
     ? new ProactiveBudget(resolve(PLUGIN_HOME, 'proactive-budget.json'), config.proactive)
     : undefined;
   manager.proactiveBudget = proactiveBudget;
+  // 被预算拦掉的主动消息暂存箱：下次该目标来消息时作为被动回复补发（持久化，24h TTL）
+  const proactiveQueue = config.proactive.enabled
+    ? new ProactiveQueue(resolve(PLUGIN_HOME, 'proactive-outbox.json'))
+    : undefined;
+  manager.proactiveQueue = proactiveQueue;
   const gateProactive = <T>(
     target: ReplyTarget,
     resolved: ReplyTarget,
@@ -141,7 +158,11 @@ export async function bootstrapGateway(
   const sender: QQBotSender = {
     sendMarkdown: (target, content, opts) => {
       const resolved = resolveReplyTarget(target, replyLimiter, true);
-      return gateProactive(target, resolved, () => sendResolvedMarkdown(bot, resolved, content, opts), () => BLOCKED_SKIP);
+      return gateProactive(target, resolved, () => sendResolvedMarkdown(bot, resolved, content, opts), () => {
+        // 文本主动推送被预算拦下 → 暂存补发，不丢消息（键盘卡片不暂存：通知场景少用且时效强）
+        proactiveQueue?.enqueue(target, content, logger);
+        return BLOCKED_SKIP;
+      });
     },
     openStream: (target) => bot.openStream({
       target: {

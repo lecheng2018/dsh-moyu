@@ -2,6 +2,14 @@
 
 > [English](./CHANGELOG_EN.md)
 
+## [0.5.5-zhoukai.2] - 2026-10-31
+
+### 新增
+- **主动消息暂存箱**：被预算闸门拦下的文本推送不再丢失 —— 按目标暂存（持久化到 ~/.dsh-qqbot/proactive-outbox.json，24h TTL，每目标上限 10 条），该目标下一条真实消息到达时作为被动回复自动补发；`/bot-quota` 显示暂存余量
+- 提问超时提示带上具体时长（"提问已超时（5 分钟未收到回答）"）
+
+### 修复
+- tryConsume 返回值语义修正（0.5.5-zhoukai.1 内联修复）：发送恰好用尽额度时不再误报为被拦
 ## [0.5.5-zhoukai.1] - 2026-10-31
 
 基于官方 0.5.5 的定制 fork（包名 @zhoukai/dsh-qqbot，插件 id zhoukai-qqbot）。

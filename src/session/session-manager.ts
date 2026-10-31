@@ -26,6 +26,7 @@ import type { ModelRoute, ModelEntry } from '../model/types.ts';
 import { IdleEvictor } from './idle-evictor.ts';
 import type { QuestionChannel } from '../features/question-channel.ts';
 import type { ProactiveBudget } from '../transport/proactive-budget.ts';
+import type { ProactiveQueue } from '../transport/proactive-queue.ts';
 import type { ApprovalChannel } from '../features/approval-channel.ts';
 import type {
   SessionEventLike,
@@ -115,6 +116,8 @@ export class SessionManager {
   public approvalChannel?: ApprovalChannel;
   /** 由 bootstrap 注入的主动消息预算（供 /bot-quota 与 system prompt 剩余额度注入） */
   public proactiveBudget?: ProactiveBudget;
+  /** 由 bootstrap 注入的主动消息暂存箱（被预算拦下的推送等用户来消息时补发） */
+  public proactiveQueue?: ProactiveQueue;
 
   constructor(
     ctx: Context,

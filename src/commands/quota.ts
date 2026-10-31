@@ -25,6 +25,7 @@ export function quotaCommand({ manager }: CommandDeps): CategorizedCommand {
       if (!budget) return 'ℹ️ 主动消息预算闸门未启用（proactive.enabled=false），主动推送不受限。';
       const { scope, peerId } = getScopePeer(cmdCtx);
       const snap = budget.snapshot(scope, peerId);
+      const queued = manager.proactiveQueue?.snapshot(scope, peerId);
       const lines = [
         '📮 主动消息配额（今日）',
         `全局: 已用 ${snap.usedGlobal}${snap.remainingGlobal !== null ? ` / 剩余 ${snap.remainingGlobal}` : '（不限）'}`,
@@ -34,7 +35,13 @@ export function quotaCommand({ manager }: CommandDeps): CategorizedCommand {
       } else {
         lines.push('本会话: 暂无记录');
       }
-      if (snap.skipped > 0) lines.push(`⚠️ 已因额度跳过 ${snap.skipped} 条主动消息`);
+      if (queued && queued.total > 0) {
+        const qline = queued.forTarget !== null
+          ? `📥 暂存待补发: 本${scope === 'group' ? '群' : '用户'} ${queued.forTarget} 条（全局 ${queued.total} 条），你下次来消息时自动补发`
+          : `📥 暂存待补发: 全局 ${queued.total} 条`;
+        lines.push(qline);
+      }
+      if (snap.skipped > 0) lines.push(`⚠️ 已因额度跳过 ${snap.skipped} 条主动消息（文本类已进暂存箱）`);
       lines.push(`重置: ${snap.resetAt}`);
       return lines.join('\n');
     },

@@ -311,7 +311,10 @@ export class QuestionChannel {
     this.pending.delete(key);
     this.removeAbort(entry);
     entry.timer = undefined;
-    void this.sender.sendMarkdown(entry.record.replyTarget, '⚠️ 提问已超时，未收到回答。').catch(() => {});
+    const minutes = Math.max(1, Math.round(this.config.askTimeoutMs / 60_000));
+    void this.sender
+      .sendMarkdown(entry.record.replyTarget, `⚠️ 提问已超时（${minutes} 分钟未收到回答），本轮先继续；需要时再让 TA 重新问一次。`)
+      .catch(() => {});
     entry.reject(new QuestionChannelError('ask_user_question timed out before the user answered', ASK_ABORTED));
   }
 

@@ -124,7 +124,10 @@ export class RiskGate {
   /** 风险评估：QQ 会话 + 达到阈值 → ask；其余放行 */
   public async gate(exec: PreExecuteInput, next: () => Promise<PreExecuteVerdict>): Promise<PreExecuteVerdict> {
     if (!this.config.enabled) return next();
-    const record = exec.agent ? this.manager.findByAgent(exec.agent) : undefined;
+    // PreExecuteInput.agent 只承诺 {id?}；SessionManager.findByAgent 收更宽的 DshAgent，经 unknown 桥接
+    const record = exec.agent
+      ? this.manager.findByAgent(exec.agent as unknown as Parameters<SessionManager['findByAgent']>[0])
+      : undefined;
     if (!record) return next(); // 只管 QQ 会话，Web/CLI 不双弹窗
     const tool = typeof exec.name === 'string' ? exec.name : '';
     if (!tool) return next();

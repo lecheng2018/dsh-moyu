@@ -99,7 +99,7 @@ export function registerSendCardTool(
       render: (_args: unknown, value: { target: string }) => [{ type: 'text', text: `卡片已发送 → ${value.target}` }],
     },
     async execute(args: Record<string, unknown>, exec: { agent?: { id?: string } }) {
-      const validated = validateCardInput(args as CardInput);
+      const validated = validateCardInput(args as unknown as CardInput);
       if (!validated.ok) throw new Error(`qqbot_send_card: ${validated.error}`);
       let replyTarget: ReplyTarget | undefined;
       const rawTarget = typeof args.target === 'string' ? args.target : undefined;
@@ -107,7 +107,8 @@ export function registerSendCardTool(
         replyTarget = parseTarget(rawTarget);
         if (!replyTarget) throw new Error(`qqbot_send_card: target 格式错误，需要 c2c:openid 或 group:openid，收到: ${rawTarget}`);
       } else if (exec.agent !== undefined) {
-        replyTarget = deps.manager.findByAgent(exec.agent)?.replyTarget;
+        // 工具层只承诺 {id?}；findByAgent 收更宽的 DshAgent，经 unknown 桥接
+        replyTarget = deps.manager.findByAgent(exec.agent as unknown as Parameters<SessionManager['findByAgent']>[0])?.replyTarget;
       }
       if (!replyTarget) throw new Error('qqbot_send_card: 无法确定发送目标，请显式传 target 参数');
       await deps.sendCard(replyTarget, validated.card);

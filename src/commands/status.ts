@@ -43,7 +43,7 @@ export function statusCommand({ manager }: CommandDeps): CategorizedCommand {
       if (budget) {
         const snap = budget.snapshot(scope, peerId);
         const g = snap.remainingGlobal !== null ? `剩余 ${snap.remainingGlobal}` : '不限';
-        const t = snap.remainingTarget !== null ? `本${scope === 'group' ? '群' }剩余 ${snap.remainingTarget}` : '';
+        const t = snap.remainingTarget !== null ? `本${scope === 'group' ? '群' : '用户'}剩余 ${snap.remainingTarget}` : '';
         lines.push(`主动配额: 全局${g}${t ? `，${t}` : ''}`);
       } else {
         lines.push('主动配额: 预算闸门未启用');

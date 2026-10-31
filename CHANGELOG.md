@@ -2,6 +2,11 @@
 
 > [English](./CHANGELOG_EN.md)
 
+## [0.5.5-zhoukai.4] - 2026-10-31
+
+### 修复
+- /bot-status 健康面板的语法错误（zhoukai.3 构建失败，未发布有效包）
+
 ## [0.5.5-zhoukai.3] - 2026-10-31
 
 ### 新增

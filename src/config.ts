@@ -1,5 +1,5 @@
 /**
- * dsh-im-qqbot 插件配置 Schema
+ * zhoukai-dsh-qqbot 插件配置 Schema
  */
 import Schema from '@deepseek-ai/schemastery';
 
@@ -52,6 +52,16 @@ export interface SendFileConfig {
   maxFiles: number;
 }
 
+/** 主动消息每日配额（三级兜底里不带 msg_id 的第 3 级消耗平台额度） */
+export interface ProactiveConfig {
+  /** 是否启用预算闸门 */
+  enabled: boolean;
+  /** 全局每日主动消息上限（0 = 不限） */
+  globalDaily: number;
+  /** 单目标每日主动消息上限（0 = 不限） */
+  perTargetDaily: number;
+}
+
 export interface ImQQBotConfig {
   /** QQ Bot AppID */
   appId: string;
@@ -97,6 +107,8 @@ export interface ImQQBotConfig {
   vision: VisionConfig;
   /** 附件发送（qqbot_send_file 工具与交付物投递共用） */
   sendFile: SendFileConfig;
+  /** 主动消息每日配额（被动回复不受限） */
+  proactive: ProactiveConfig;
 }
 
 /** 访问控制子 Schema（独立导出：config 路由的服务端校验复用） */
@@ -169,4 +181,13 @@ export const ConfigSchema: Schema<ImQQBotConfig> = Schema.object({
     sendPresentedFiles: true,
     maxFiles: 4,
   }).description('附件发送配置'),
+  proactive: Schema.object({
+    enabled: Schema.boolean().default(true).description('是否启用主动消息预算闸门（被动回复不受限）'),
+    globalDaily: Schema.number().default(20).description('全局每日主动消息上限（0 = 不限）'),
+    perTargetDaily: Schema.number().default(4).description('单目标每日主动消息上限（0 = 不限）'),
+  }).default({
+    enabled: true,
+    globalDaily: 20,
+    perTargetDaily: 4,
+  }).description('主动消息每日配额'),
 });

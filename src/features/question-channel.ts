@@ -132,7 +132,7 @@ export class QuestionChannel {
     const uq = ctx.get('userQuestions') as UserQuestionsServiceLike | undefined;
     if (!uq || uq.__qqQuestionPatched) return;
     if (typeof uq.ask !== 'function') {
-      this.logger.warn('im-qqbot: userQuestions service lacks ask() — QQ question channel disabled');
+      this.logger.warn('zhoukai-qqbot: userQuestions service lacks ask() — QQ question channel disabled');
       return;
     }
 
@@ -146,7 +146,7 @@ export class QuestionChannel {
     };
     Object.defineProperty(uq, '__qqQuestionPatched', { value: true, configurable: true, enumerable: false });
     this.uq = uq;
-    this.logger.info('im-qqbot: QQ question channel installed');
+    this.logger.info('zhoukai-qqbot: QQ question channel installed');
   }
 
   public uninstall(): void {
@@ -236,7 +236,7 @@ export class QuestionChannel {
     const first = request.questions[0];
     if (!first) throw new Error('ask_user_question with empty questions');
 
-    await this.sendQuestion(record, first);
+    await this.sendQuestion(record, first, { index: 1, total: request.questions.length });
 
     return new Promise<UserQuestionResult>((resolve, reject) => {
       const entry: PendingEntry = { record, request, resolve, reject, index: 0, collected: [] };
@@ -252,7 +252,7 @@ export class QuestionChannel {
       }
       entry.timer = setTimeout(() => this.onTimeout(key), this.config.askTimeoutMs);
       this.pending.set(key, entry);
-      this.logger.info(`im-qqbot: question sent to QQ, waiting for answer key=${key}`);
+      this.logger.info(`zhoukai-qqbot: question sent to QQ, waiting for answer key=${key}`);
     });
   }
 
@@ -264,7 +264,7 @@ export class QuestionChannel {
     if (entry.index < entry.request.questions.length) {
       const next = entry.request.questions[entry.index]!;
       this.resetTimer(entry, key);
-      void this.sendQuestion(entry.record, next).catch((err) => {
+      void this.sendQuestion(entry.record, next, { index: entry.index + 1, total: entry.request.questions.length }).catch((err) => {
         this.pending.delete(key);
         this.clearTimer(entry);
         this.removeAbort(entry);
@@ -276,27 +276,31 @@ export class QuestionChannel {
     this.pending.delete(key);
     this.clearTimer(entry);
     this.removeAbort(entry);
-    this.logger.info(`im-qqbot: question answered via QQ key=${key}`);
+    this.logger.info(`zhoukai-qqbot: question answered via QQ key=${key}`);
     entry.resolve({ answers: entry.collected });
   }
 
-  /** 发送单个问题：优先带按钮，按钮发送失败降级纯文本 */
-  private async sendQuestion(record: QuestionSessionRecordLike, question: UserQuestion): Promise<void> {
+  /** 发送单个问题：优先带按钮，按钮发送失败降级纯文本；progress 供多问进度提示 */
+  private async sendQuestion(
+    record: QuestionSessionRecordLike,
+    question: UserQuestion,
+    progress?: { index: number; total: number },
+  ): Promise<void> {
     const hint = record.scope === 'group' && this.config.requireMention === true;
     const keyboard = buildKeyboard(question);
     try {
       if (keyboard) {
         try {
-          await this.sender.sendMarkdown(record.replyTarget, formatQuestion(question, hint, true), { keyboard });
+          await this.sender.sendMarkdown(record.replyTarget, formatQuestion(question, hint, true, progress), { keyboard });
           return;
         } catch (err) {
-          this.logger.warn(`im-qqbot: keyboard send failed, fallback to text: ${err instanceof Error ? err.message : String(err)}`);
+          this.logger.warn(`zhoukai-qqbot: keyboard send failed, fallback to text: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
-      await this.sender.sendMarkdown(record.replyTarget, formatQuestion(question, hint, false));
+      await this.sender.sendMarkdown(record.replyTarget, formatQuestion(question, hint, false, progress));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`im-qqbot: question send failed key=${record.sessionKey}: ${msg}`);
+      this.logger.error(`zhoukai-qqbot: question send failed key=${record.sessionKey}: ${msg}`);
       throw new Error(`failed to deliver question to QQ: ${msg}`);
     }
   }

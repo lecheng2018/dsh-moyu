@@ -1,5 +1,5 @@
 /**
- * 端内绑定页路由 — /qqbot/im-qqbot/bind
+ * 端内绑定页路由 — /qqbot/zhoukai-qqbot/bind
  *
  * 注册在 dsh-host-webserver（ctx.webServer）的具名路由：
  * - Web 模式：页面同源直接访问
@@ -180,7 +180,7 @@ export function registerBindRoutes(
       handler: (req, res) => handleConfig(req, res, options),
     }),
   ];
-  logger.info(`im-qqbot: 端内绑定页已就绪: ${BIND_STATE_PATH}`);
+  logger.info(`zhoukai-qqbot: 端内绑定页已就绪: ${BIND_STATE_PATH}`);
   return () => { for (const dispose of disposers) dispose(); };
 }
 

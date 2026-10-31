@@ -25,6 +25,7 @@ import { ModelResolver } from '../model/model-resolver.ts';
 import type { ModelRoute, ModelEntry } from '../model/types.ts';
 import { IdleEvictor } from './idle-evictor.ts';
 import type { QuestionChannel } from '../features/question-channel.ts';
+import type { ProactiveBudget } from '../transport/proactive-budget.ts';
 import type { ApprovalChannel } from '../features/approval-channel.ts';
 import type {
   SessionEventLike,
@@ -112,6 +113,8 @@ export class SessionManager {
   public questionChannel?: QuestionChannel;
   /** 由 bootstrap 注入的审批通道（approval/request → QQ），会话回收时清理其待批审批 */
   public approvalChannel?: ApprovalChannel;
+  /** 由 bootstrap 注入的主动消息预算（供 /bot-quota 与 system prompt 剩余额度注入） */
+  public proactiveBudget?: ProactiveBudget;
 
   constructor(
     ctx: Context,
@@ -163,13 +166,29 @@ export class SessionManager {
       const record = this.findByAgent(context.agent);
       if (!record) return assembled;
 
+      const sections = [...(assembled.sections ?? [])];
+      // 群聊/私聊额外 prompt（用户配置，未配置时跳过）
       const prompt = record.scope === 'group' ? this.config.groupPrompt : this.config.directPrompt;
-      if (!prompt) return assembled;
+      if (prompt) {
+        sections.push({ name: 'qqbot:scope-prompt', order: 90, text: prompt });
+      }
+      // 主动消息剩余额度：让模型自己掂量「稍后主动找你」这类承诺能不能兑现
+      if (this.proactiveBudget) {
+        const snap = this.proactiveBudget.snapshot(record.scope, record.peerId);
+        if (snap.remainingGlobal !== null || snap.remainingTarget !== null) {
+          const parts: string[] = [];
+          if (snap.remainingGlobal !== null) parts.push(`全局剩余 ${snap.remainingGlobal} 条`);
+          if (snap.remainingTarget !== null) parts.push(`本${record.scope === 'group' ? '群' : '用户'}剩余 ${snap.remainingTarget} 条`);
+          sections.push({
+            name: 'qqbot:proactive-quota',
+            order: 91,
+            text: `主动消息每日配额:今日${parts.join('，')}。超出配额的消息不会发出;不要轻易承诺「稍后我主动找你/汇报」,优先在当前回复里把事说完,确需后续主动推送时先告知用户额度限制。`,
+          });
+        }
+      }
+      if (sections.length === (assembled.sections?.length ?? 0)) return assembled;
 
-      return {
-        ...assembled,
-        sections: [...(assembled.sections ?? []), { name: 'qqbot:scope-prompt', order: 90, text: prompt }],
-      };
+      return { ...assembled, sections };
     };
 
     (this.ctx as unknown as {
@@ -476,7 +495,7 @@ export class SessionManager {
       };
     } catch (err) {
       this.logger.warn(
-        `im-qqbot: preset ${presetId ?? '(default)'} unavailable: ${err instanceof Error ? err.message : String(err)} — using host composition`,
+        `zhoukai-qqbot: preset ${presetId ?? '(default)'} unavailable: ${err instanceof Error ? err.message : String(err)} — using host composition`,
       );
       return {};
     }

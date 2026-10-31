@@ -18,9 +18,13 @@ import type { QQBotSender } from '../transport/outbound-buffer.ts';
 import { QuestionChannel } from '../features/question-channel.ts';
 import { ApprovalChannel, type ApprovalChannelContext } from '../features/approval-channel.ts';
 import { decodeButtonData } from '../features/button-utils.ts';
+import { discoverMemeRoots, seedMemeDefaults } from '../features/meme-bridge.ts';
+import { ProactiveBudget } from '../transport/proactive-budget.ts';
+import { PLUGIN_HOME } from '../shared/dirs.ts';
 import { buildUserAgent } from '../shared/index.ts';
 import type { ImQQBotConfig } from '../config.ts';
-import type { ChatScope, Logger } from '../types.ts';
+import type { ChatScope, Logger, ReplyTarget } from '../types.ts';
+import { resolve } from 'node:path';
 import { setupMiddlewares } from './middleware-setup.ts';
 import { startMediaCleanup } from '../media/media-cleaner.ts';
 import { ensureVisionInputModal, registerDescribeImageTool } from '../media/vision-tool.ts';
@@ -48,7 +52,20 @@ export async function bootstrapGateway(
   config: ImQQBotConfig,
   logger: Logger,
 ): Promise<void> {
-  const manager = new SessionManager(ctx, agents, config, logger);
+  // ── dsh-meme 零配置对接 ──
+  // 图库目录自动并入 sendFile 白名单（media + cwd 之外的第三类默认根），
+  // 并在 dsh-meme 设置存在但未开「QQ 发图尺寸」时补默认值（300px）。
+  seedMemeDefaults(logger);
+  const memeRoots = discoverMemeRoots(logger);
+  if (memeRoots.length > 0) {
+    logger.info(`meme-bridge: 已自动放行 dsh-meme 图库目录: ${memeRoots.join(', ')}`);
+  }
+  const effectiveConfig: ImQQBotConfig = {
+    ...config,
+    sendFile: { ...config.sendFile, extraRoots: [...config.sendFile.extraRoots, ...memeRoots] },
+  };
+
+  const manager = new SessionManager(ctx, agents, effectiveConfig, logger);
 
   // ── 初始化 QQ Bot SDK ──
   const userAgent = buildUserAgent();
@@ -64,7 +81,7 @@ export async function bootstrapGateway(
   logger.info(`QQBot SDK initialized (UA: ${userAgent})`);
 
   // ── 中间件链 ──
-  setupMiddlewares(bot, config, manager, logger);
+  setupMiddlewares(bot, effectiveConfig, manager, logger);
 
   // ── 入站：经过中间件链后的消息交给 dsh agent ──
   bot.on('message', async (mCtx: MiddlewareContext) => {
@@ -74,7 +91,7 @@ export async function bootstrapGateway(
     if (config.debug) {
       logger.debug(`← message (post-middleware): ${JSON.stringify(msg, null, 2).slice(0, 500)}`);
     }
-    await handleInbound(mCtx, manager, config, logger);
+    await handleInbound(mCtx, manager, effectiveConfig, logger);
   });
 
   // ── 出站：dsh session/event → QQ 消息 ──
@@ -86,11 +103,34 @@ export async function bootstrapGateway(
     toolsRegistry = undefined;
   }
 
+  // ── 主动消息预算闸门 ──
+  // resolveReplyTarget 返回的目标不带 msg_id/event_id = 三级兜底走到第 3 级（主动推送），
+  // 此时消耗每日配额；任一维度用尽则跳过发送（不 throw：出站错误路径的重发会放大消耗）。
+  // 被动回复（带 msg_id/event_id）不受限。
+  const proactiveBudget = config.proactive.enabled
+    ? new ProactiveBudget(resolve(PLUGIN_HOME, 'proactive-budget.json'), config.proactive)
+    : undefined;
+  manager.proactiveBudget = proactiveBudget;
+  const gateProactive = <T>(target: ReplyTarget, resolved: ReplyTarget, doSend: () => Promise<T>): Promise<T | { skipped: string }> => {
+    if (!proactiveBudget) return doSend();
+    if (resolved.msgId === undefined && resolved.eventId === undefined) {
+      const check = proactiveBudget.tryConsume(target.scope, target.targetId);
+      if (!check.ok) {
+        logger.warn(`proactive-budget: 主动推送被拦（${check.reason === 'global' ? '全局额度' : '单目标额度'}用尽）→ ${target.scope}:${target.targetId}`);
+        return Promise.resolve({ skipped: 'proactive-budget' });
+      }
+    }
+    return doSend();
+  };
+
   // 发送适配器：将 QQBot 实例适配为 QQBotSender（openStream 参数形态不同）。
-  // sendMarkdown 统一做被动回复限额管控：同一 msgId 超限/过期时降级主动推送。
+  // sendMarkdown 统一做被动回复限额管控：同一 msgId 超限/过期时降级主动推送（过预算闸门）。
   const replyLimiter = new ReplyLimiter({ limit: 4 });
   const sender: QQBotSender = {
-    sendMarkdown: (target, content, opts) => sendResolvedMarkdown(bot, resolveReplyTarget(target, replyLimiter, true), content, opts),
+    sendMarkdown: (target, content, opts) => {
+      const resolved = resolveReplyTarget(target, replyLimiter, true);
+      return gateProactive(target, resolved, () => sendResolvedMarkdown(bot, resolved, content, opts));
+    },
     openStream: (target) => bot.openStream({
       target: {
         scope: target.scope,
@@ -101,19 +141,31 @@ export async function bootstrapGateway(
   };
 
   // ── 附件发送适配器（qqbot_send_file 工具与交付物投递共用） ──
-  // 包装 bot：让文件发送也走 msgId 兜底 + 被动回复限额管控。
+  // 包装 bot：让文件发送也走 msgId 兜底 + 被动回复限额管控 + 主动推送预算。
   // 注意：SDK 文件发送暂不支持 event_id，故 allowEvent=false，跳过 event 候选。
   const mediaSender: MediaSenderLike = {
-    sendImage: (target, source) => bot.sendImage(resolveReplyTarget(target, replyLimiter, false), source),
-    sendVideo: (target, source) => bot.sendVideo(resolveReplyTarget(target, replyLimiter, false), source),
-    sendVoice: (target, source) => bot.sendVoice(resolveReplyTarget(target, replyLimiter, false), source),
-    sendFile: (target, source, opts) => bot.sendFile(resolveReplyTarget(target, replyLimiter, false), source, opts),
+    sendImage: (target, source) => {
+      const resolved = resolveReplyTarget(target, replyLimiter, false);
+      return gateProactive(target, resolved, () => bot.sendImage(resolved, source));
+    },
+    sendVideo: (target, source) => {
+      const resolved = resolveReplyTarget(target, replyLimiter, false);
+      return gateProactive(target, resolved, () => bot.sendVideo(resolved, source));
+    },
+    sendVoice: (target, source) => {
+      const resolved = resolveReplyTarget(target, replyLimiter, false);
+      return gateProactive(target, resolved, () => bot.sendVoice(resolved, source));
+    },
+    sendFile: (target, source, opts) => {
+      const resolved = resolveReplyTarget(target, replyLimiter, false);
+      return gateProactive(target, resolved, () => bot.sendFile(resolved, source, opts));
+    },
   };
 
   // 交付物投递：present 声明的文件在轮末发送到当前会话（outbound 路由触发）
-  const deliverablesDeliverer = new DeliverablesDeliverer(sender, mediaSender, config, logger);
+  const deliverablesDeliverer = new DeliverablesDeliverer(sender, mediaSender, effectiveConfig, logger);
 
-  const outbound = createOutboundHandler(manager, sender, config, logger, toolsRegistry, deliverablesDeliverer);
+  const outbound = createOutboundHandler(manager, sender, effectiveConfig, logger, toolsRegistry, deliverablesDeliverer);
   (ctx as unknown as { on(event: string, handler: (...args: unknown[]) => void): void })
     .on('session/event', outbound.routeSessionEvent as (...args: unknown[]) => void);
 
@@ -128,12 +180,12 @@ export async function bootstrapGateway(
     }, { global: true });
 
   // ── 问答通道（ask_user_question → QQ 文本 + 按钮） ──
-  const questionChannel = new QuestionChannel(manager, sender, config, logger);
+  const questionChannel = new QuestionChannel(manager, sender, effectiveConfig, logger);
   manager.questionChannel = questionChannel;
   questionChannel.install(ctx);
 
   // ── 审批通道（approval/request → QQ 两按钮审批） ──
-  const approvalChannel = new ApprovalChannel(manager, sender, config, logger);
+  const approvalChannel = new ApprovalChannel(manager, sender, effectiveConfig, logger);
   manager.approvalChannel = approvalChannel;
   approvalChannel.install(ctx as unknown as ApprovalChannelContext);
 
@@ -170,7 +222,7 @@ export async function bootstrapGateway(
   }
 
   bot.on('ready', () => {
-    console.log(`[im-qqbot] Bot ready! appId=${config.appId}`);
+    console.log(`[zhoukai-qqbot] Bot ready! appId=${config.appId}`);
   });
 
   // ── 富媒体过期清理 ──
@@ -183,7 +235,7 @@ export async function bootstrapGateway(
   registerDescribeImageTool(ctx, config.vision, logger);
 
   // ── 附件发送工具注册（qqbot_send_file，发送器见上方 mediaSender） ──
-  registerSendFileTool(ctx, mediaSender, manager, config, logger);
+  registerSendFileTool(ctx, mediaSender, manager, effectiveConfig, logger);
 
   // ── 生命周期 ──
   (ctx as unknown as { effect(fn: () => (() => Promise<void>) | void, name?: string): void })
@@ -198,5 +250,5 @@ export async function bootstrapGateway(
         await manager.disposeAll();
         bot.stop();
       };
-    }, 'im-qqbot.lifecycle');
+    }, 'zhoukai-qqbot.lifecycle');
 }

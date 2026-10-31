@@ -2,6 +2,15 @@
 
 > [English](./CHANGELOG_EN.md)
 
+## [0.5.5-zhoukai.1] - 2026-10-31
+
+基于官方 0.5.5 的定制 fork（包名 @zhoukai/dsh-qqbot，插件 id zhoukai-qqbot）。
+
+### 新增
+- **提问卡片增强**：选项带 A./B./C. 字母前缀（按钮与正文一致）；文字兜底支持字母/编号/全角字母/「选」前缀/混合标记（A,C、1 3、选AB）；多问逐题推进时显示（第 N/M 问）进度（question-renderer / answer-parser / question-channel）
+- **dsh-meme 零配置对接**：自动探测图库目录（DSH_MEME_HOME || homedir() 的 ~/.dsh/meme-packs 与 dsh-expression.json 的 packsDir）并入 sendFile 白名单；dsh-expression.json 存在且未配置时补 qqSendResize=true / qqSendEdge=300，从不覆盖用户已保存的值（features/meme-bridge）
+- **主动消息每日配额**：全局 + 单目标两维度预算闸门，持久化到 ~/.dsh-qqbot/proactive-budget.json、每日 0 点重置；额度用尽自动拦截主动推送并计数；新增 /bot-quota 命令查余额；剩余额度注入 system prompt（transport/proactive-budget）
+
 本文件从产品视角记录 dsh-qqbot 的重要更新，聚焦用户可感知的变化。
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。

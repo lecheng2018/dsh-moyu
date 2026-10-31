@@ -80,7 +80,7 @@ let settingsPath: string;
 let prevDshHome: string | undefined;
 
 beforeEach(() => {
-  dshHome = mkdtempSync(join(tmpdir(), 'im-qqbot-settings-'));
+  dshHome = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-settings-'));
   settingsPath = join(dshHome, 'settings.yaml');
   prevDshHome = process.env.DSH_HOME;
   process.env.DSH_HOME = dshHome;

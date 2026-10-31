@@ -1,5 +1,5 @@
 /**
- * dsh-im-qqbot — QQ Bot IM channel plugin for deepseek-harness
+ * zhoukai-dsh-qqbot — QQ Bot IM channel plugin for deepseek-harness
  *
  * Cordis 插件入口。将 QQ 消息平台作为 dsh 的前端协议驱动。
  * 网关组装（中间件编排 + 事件 + 出站 + 生命周期）见 src/gateway/；
@@ -14,7 +14,7 @@ import { ensureCredentials, persistCredentialsToProfile, registerBoundCredential
 import type { Logger } from './types.ts';
 
 // ── Cordis 插件元数据 ──
-export const name = 'im-qqbot';
+export const name = 'zhoukai-qqbot';
 export const inject = ['agents'];
 export const Config = ConfigSchema;
 

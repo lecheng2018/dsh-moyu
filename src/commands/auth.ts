@@ -26,7 +26,7 @@ export function commandAllowlistAuth(
     if (config.access.c2cMode !== 'allowlist') return true;
     const senderId = ctx.message.senderId;
     if (!senderId || !config.access.c2cAllow.includes(senderId)) {
-      logger?.warn(`im-qqbot: command auth denied: sender=${senderId ?? '(missing)'}`);
+      logger?.warn(`zhoukai-qqbot: command auth denied: sender=${senderId ?? '(missing)'}`);
       return DENIED;
     }
     return true;

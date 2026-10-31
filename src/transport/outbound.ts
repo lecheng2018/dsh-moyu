@@ -276,7 +276,7 @@ class OutboundRouter {
       if (files.length > 0 && this.deliverer !== undefined) {
         await this.deliverer.deliver(record, files);
       }
-      this.logger.debug(`im-qqbot: turn/end sessionId=${sessionId}`);
+      this.logger.debug(`zhoukai-qqbot: turn/end sessionId=${sessionId}`);
     })();
   }
 
@@ -287,7 +287,7 @@ class OutboundRouter {
       try {
         await this.bot.sendMarkdown(record.replyTarget, chunk);
       } catch (err) {
-        this.logger.error(`im-qqbot: ${tag} failed: ${err instanceof Error ? err.message : String(err)}`);
+        this.logger.error(`zhoukai-qqbot: ${tag} failed: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }

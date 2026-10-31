@@ -60,11 +60,11 @@ export class DeliverablesDeliverer implements DeliverablesDelivererLike {
       if (result.outcome === 'sent') {
         sent++;
         this.logger.info(
-          `im-qqbot: 交付物已发送 ${display} (${result.size} bytes) → `
+          `zhoukai-qqbot: 交付物已发送 ${display} (${result.size} bytes) → `
           + `${record.replyTarget.scope}:${record.replyTarget.targetId}`,
         );
       } else if (result.outcome === 'failed') {
-        this.logger.warn(`im-qqbot: 交付物发送失败 ${display}: ${result.error}`);
+        this.logger.warn(`zhoukai-qqbot: 交付物发送失败 ${display}: ${result.error}`);
         missed.push(display);
       } else {
         missed.push(display);
@@ -78,11 +78,11 @@ export class DeliverablesDeliverer implements DeliverablesDelivererLike {
           await this.sender.sendMarkdown(record.replyTarget, chunk);
         } catch (err) {
           this.logger.error(
-            `im-qqbot: deliverables notice failed: ${err instanceof Error ? err.message : String(err)}`,
+            `zhoukai-qqbot: deliverables notice failed: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
       }
     }
-    this.logger.debug(`im-qqbot: deliverables delivered sent=${sent} missed=${missed.length}`);
+    this.logger.debug(`zhoukai-qqbot: deliverables delivered sent=${sent} missed=${missed.length}`);
   }
 }

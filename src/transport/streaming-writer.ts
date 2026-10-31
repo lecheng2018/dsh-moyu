@@ -93,7 +93,7 @@ export class StreamingWriter {
         await this.session.complete();
       } catch (err) {
         this.deps.logger.error(
-          `im-qqbot: stream complete failed: ${err instanceof Error ? err.message : String(err)}`,
+          `zhoukai-qqbot: stream complete failed: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     }
@@ -117,7 +117,7 @@ export class StreamingWriter {
           await this.session.complete();
         } catch (err) {
           this.deps.logger.error(
-            `im-qqbot: stream abort complete failed: ${err instanceof Error ? err.message : String(err)}`,
+            `zhoukai-qqbot: stream abort complete failed: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
       }
@@ -136,12 +136,12 @@ export class StreamingWriter {
     if (!this.session) {
       try {
         this.session = this.deps.bot.openStream(this.deps.target);
-        this.deps.logger.debug(`im-qqbot: stream opened (chars=${this.fullText.length})`);
+        this.deps.logger.debug(`zhoukai-qqbot: stream opened (chars=${this.fullText.length})`);
       } catch (err) {
         // openStream 失败：标记 failed 避免重复尝试，后续走降级静态
         this.failed = true;
         this.deps.logger.warn(
-          `im-qqbot: openStream failed, fallback to static: ${err instanceof Error ? err.message : String(err)}`,
+          `zhoukai-qqbot: openStream failed, fallback to static: ${err instanceof Error ? err.message : String(err)}`,
         );
         return;
       }
@@ -153,7 +153,7 @@ export class StreamingWriter {
     } catch (err) {
       // update 失败：不标记 failed（session 已打开，finish 会 complete 关闭）
       this.deps.logger.warn(
-        `im-qqbot: stream update failed: ${err instanceof Error ? err.message : String(err)}`,
+        `zhoukai-qqbot: stream update failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }

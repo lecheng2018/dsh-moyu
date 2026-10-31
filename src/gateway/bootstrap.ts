@@ -5,7 +5,7 @@
  * dsh session/event → createOutboundHandler → QQ 出站。
  */
 import type { Context } from '@deepseek-ai/cordis';
-import { QQBot } from '@tencent-connect/qqbot-nodejs';
+import { QQBot, MsgType } from '@tencent-connect/qqbot-nodejs';
 import type { GatewayDisconnect, InteractionEvent, MiddlewareContext } from '@tencent-connect/qqbot-nodejs';
 import { SessionManager, type DshAgentRegistry } from '../session/index.ts';
 import { handleInbound, createOutboundHandler } from '../transport/index.ts';
@@ -116,18 +116,18 @@ export async function bootstrapGateway(
     toolsRegistry = undefined;
   }
 
-  // ── 主动消息预算闸门 ──
-  // resolveReplyTarget 返回的目标不带 msg_id/event_id = 三级兜底走到第 3 级（主动推送），
-  // 此时消耗每日配额。被拦时的处置因调用方而异（onBlocked）：
-  //   - 文本出站：静默跳过（返回 {skipped} 哨兵；出站错误路径的重发会放大消耗，不 throw）
-  //   - 媒体发送：抛错 —— sendMediaFile 的 catch 会转成 outcome:'failed' 透传给
-  //     qqbot_send_file 工具结果/交付物日志，让模型明确知道没发出去
-  // 被动回复（带 msg_id/event_id）不受限。
+  // ── 主动消息预算闸门 + 互动召回优先 ──
+  // resolveReplyTarget 返回的目标不带 msg_id/event_id = 三级兜底走到第 3 级（主动推送）。
+  // v2 C2C 有两条互斥的主动通道：
+  //   ① 互动召回（is_wakeup，C2C 专属）：30 天 4 周期各 1 条的独立配额，
+  //      不占每日主动额度；用户发一句消息即重置计时 —— 定时汇报首选。
+  //   ② 普通主动：单关系 1000 条/日，走预算闸门（globalDaily/perTargetDaily）。
+  // 顺序：wakeup 开启且 C2C → 先试①，失败自动转②；被闸门拦下 → 文本进暂存箱
+  // （下次该目标来消息时被动补发），媒体抛错给模型。被动回复全都不经过这里。
   const proactiveBudget = config.proactive.enabled
     ? new ProactiveBudget(resolve(PLUGIN_HOME, 'proactive-budget.json'), config.proactive)
     : undefined;
   manager.proactiveBudget = proactiveBudget;
-  // 被预算拦掉的主动消息暂存箱：下次该目标来消息时作为被动回复补发（持久化，24h TTL）
   const proactiveQueue = config.proactive.enabled
     ? new ProactiveQueue(resolve(PLUGIN_HOME, 'proactive-outbox.json'))
     : undefined;
@@ -135,18 +135,31 @@ export async function bootstrapGateway(
   const gateProactive = <T>(
     target: ReplyTarget,
     resolved: ReplyTarget,
-    doSend: () => Promise<T>,
-    onBlocked: () => T,
+    attempt: {
+      normal: () => Promise<T>;
+      /** 互动召回通道（仅 C2C 文本传入）；未传或失败 → 预算闸门 → 普通主动 */
+      wakeup?: () => Promise<T>;
+      onBlocked: () => T;
+    },
   ): Promise<T> => {
-    if (!proactiveBudget) return doSend();
-    if (resolved.msgId === undefined && resolved.eventId === undefined) {
+    const isProactive = resolved.msgId === undefined && resolved.eventId === undefined;
+    if (!isProactive) return attempt.normal();
+    const budgetPath = (): Promise<T> => {
+      if (!proactiveBudget) return attempt.normal();
       const check = proactiveBudget.tryConsume(target.scope, target.targetId);
       if (!check.ok) {
         logger.warn(`proactive-budget: 主动推送被拦（${check.reason === 'global' ? '全局额度' : '单目标额度'}用尽）→ ${target.scope}:${target.targetId}`);
-        return Promise.resolve(onBlocked());
+        return Promise.resolve(attempt.onBlocked());
       }
+      return attempt.normal();
+    };
+    if (attempt.wakeup) {
+      return attempt.wakeup().catch((err: unknown) => {
+        logger.warn(`proactive: 互动召回失败，转普通主动（预算闸门）: ${err instanceof Error ? err.message : String(err)}`);
+        return budgetPath();
+      });
     }
-    return doSend();
+    return budgetPath();
   };
   const BLOCKED_SKIP = { skipped: 'proactive-budget' };
   const BLOCKED_THROW = (): never => {
@@ -154,15 +167,29 @@ export async function bootstrapGateway(
   };
 
   // 发送适配器：将 QQBot 实例适配为 QQBotSender（openStream 参数形态不同）。
-  // sendMarkdown 统一做被动回复限额管控：同一 msgId 超限/过期时降级主动推送（过预算闸门）。
+  // sendMarkdown 统一做被动回复限额管控：同一 msgId 超限/过期时降级主动推送（互动召回优先 → 预算闸门）。
   const replyLimiter = new ReplyLimiter({ limit: 4 });
   const sender: QQBotSender = {
     sendMarkdown: (target, content, opts) => {
       const resolved = resolveReplyTarget(target, replyLimiter, true);
-      return gateProactive(target, resolved, () => sendResolvedMarkdown(bot, resolved, content, opts), () => {
-        // 文本主动推送被预算拦下 → 暂存补发，不丢消息（键盘卡片不暂存：通知场景少用且时效强）
-        proactiveQueue?.enqueue(target, content, logger);
-        return BLOCKED_SKIP;
+      return gateProactive(target, resolved, {
+        normal: () => sendResolvedMarkdown(bot, resolved, content, opts),
+        wakeup: target.scope === 'c2c'
+          ? async () => {
+              const r = await bot.send({
+                target,
+                msgType: MsgType.MARKDOWN,
+                markdown: { content },
+                extra: { is_wakeup: true },
+              });
+              proactiveBudget?.recordWakeup();
+              return r;
+            }
+          : undefined,
+        onBlocked: () => {
+          proactiveQueue?.enqueue(target, content, logger);
+          return BLOCKED_SKIP;
+        },
       });
     },
     openStream: (target) => bot.openStream({
@@ -180,19 +207,19 @@ export async function bootstrapGateway(
   const mediaSender: MediaSenderLike = {
     sendImage: (target, source) => {
       const resolved = resolveReplyTarget(target, replyLimiter, false);
-      return gateProactive(target, resolved, () => bot.sendImage(resolved, source), BLOCKED_THROW);
+      return gateProactive(target, resolved, { normal: () => bot.sendImage(resolved, source), onBlocked: BLOCKED_THROW });
     },
     sendVideo: (target, source) => {
       const resolved = resolveReplyTarget(target, replyLimiter, false);
-      return gateProactive(target, resolved, () => bot.sendVideo(resolved, source), BLOCKED_THROW);
+      return gateProactive(target, resolved, { normal: () => bot.sendVideo(resolved, source), onBlocked: BLOCKED_THROW });
     },
     sendVoice: (target, source) => {
       const resolved = resolveReplyTarget(target, replyLimiter, false);
-      return gateProactive(target, resolved, () => bot.sendVoice(resolved, source), BLOCKED_THROW);
+      return gateProactive(target, resolved, { normal: () => bot.sendVoice(resolved, source), onBlocked: BLOCKED_THROW });
     },
     sendFile: (target, source, opts) => {
       const resolved = resolveReplyTarget(target, replyLimiter, false);
-      return gateProactive(target, resolved, () => bot.sendFile(resolved, source, opts), BLOCKED_THROW);
+      return gateProactive(target, resolved, { normal: () => bot.sendFile(resolved, source, opts), onBlocked: BLOCKED_THROW });
     },
   };
 

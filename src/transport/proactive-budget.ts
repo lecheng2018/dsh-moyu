@@ -20,12 +20,12 @@ import { dirname } from 'node:path';
 import type { ChatScope } from '../types.ts';
 
 export interface ProactiveBudgetOptions {
-  /** 全局每日主动消息上限（0 = 不限；平台 bot 级月度额度约 1000 条，按天 20 保守） */
+  /** 全局每日普通主动消息上限（0 = 不限；bot 级未认证 30qpm，闸门只防失控循环） */
   globalDaily: number;
   /**
-   * 单目标每日主动消息上限（0 = 不限）。
-   * 平台「互动召回」对单用户是 30 天内 4 个周期（当天/1-3天/3-7天/7-30天）
-   * 各 1 条 —— 当天只有 1 条名额，默认 1 对齐这个节奏，避免同日连发撞 304023。
+   * 单目标每日普通主动上限（0 = 不限）。
+   * v2 C2C 接口：普通主动 = 单关系 1000 条/日；互动召回（is_wakeup）是
+   * 30 天 4 周期各 1 条的独立配额。闸门只防失控循环，默认远低于平台上限。
    */
   perTargetDaily: number;
 }
@@ -45,6 +45,8 @@ interface BudgetState {
   targets: Record<string, number>;
   /** 因预算拒绝而跳过的发送次数（诊断用） */
   skipped: number;
+  /** 今日互动召回（is_wakeup）发送次数（独立配额，仅计数供展示） */
+  wakeupUsed: number;
 }
 
 function todayKey(): string {
@@ -65,7 +67,7 @@ export class ProactiveBudget {
   }
 
   private load(): BudgetState {
-    const fresh: BudgetState = { date: todayKey(), globalUsed: 0, targets: {}, skipped: 0 };
+    const fresh: BudgetState = { date: todayKey(), globalUsed: 0, targets: {}, skipped: 0, wakeupUsed: 0 };
     try {
       if (!existsSync(this.file)) return fresh;
       const parsed = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<BudgetState>;
@@ -75,6 +77,7 @@ export class ProactiveBudget {
         globalUsed: Number.isFinite(parsed.globalUsed) ? parsed.globalUsed! : 0,
         targets: parsed.targets && typeof parsed.targets === 'object' ? parsed.targets : {},
         skipped: Number.isFinite(parsed.skipped) ? parsed.skipped! : 0,
+        wakeupUsed: Number.isFinite(parsed.wakeupUsed) ? parsed.wakeupUsed! : 0,
       };
     } catch {
       return fresh;
@@ -146,11 +149,17 @@ export class ProactiveBudget {
     return { ok: true, remainingGlobal, remainingTarget };
   }
 
+  /** 互动召回发送计数（独立配额，不做闸门，仅统计） */
+  recordWakeup(): void {
+    this.state.wakeupUsed += 1;
+    this.persist();
+  }
+
   /** /bot-quota 与提示词注入用的快照 */
   snapshot(scope?: ChatScope, targetId?: string): {
     usedGlobal: number; remainingGlobal: number | null;
     usedTarget: number | null; remainingTarget: number | null;
-    skipped: number; resetAt: string;
+    skipped: number; wakeupUsed: number; resetAt: string;
   } {
     const g = this.opts.globalDaily;
     const t = this.opts.perTargetDaily;
@@ -161,6 +170,7 @@ export class ProactiveBudget {
       usedTarget,
       remainingTarget: usedTarget !== null && t > 0 ? Math.max(0, t - usedTarget) : null,
       skipped: this.state.skipped,
+      wakeupUsed: this.state.wakeupUsed,
       resetAt: '明日 00:00',
     };
   }

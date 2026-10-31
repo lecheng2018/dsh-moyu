@@ -52,14 +52,16 @@ export interface SendFileConfig {
   maxFiles: number;
 }
 
-/** 主动消息每日配额（三级兜底里不带 msg_id 的第 3 级消耗平台额度） */
+/** 主动消息配置（v2 C2C 接口：普通主动 = 单关系 1000 条/日；互动召回 = 30 天 4 周期各 1 条的独立配额） */
 export interface ProactiveConfig {
-  /** 是否启用预算闸门 */
+  /** 是否启用预算闸门（兜底防失控；被动回复不受限） */
   enabled: boolean;
-  /** 全局每日主动消息上限（0 = 不限） */
+  /** 全局每日主动消息上限（0 = 不限；bot 级未认证 30qpm，闸门只防失控循环） */
   globalDaily: number;
-  /** 单目标每日主动消息上限（0 = 不限） */
+  /** 单目标每日普通主动上限（0 = 不限；平台单关系上限 1000 条/日，闸门取其零头防刷屏） */
   perTargetDaily: number;
+  /** 主动推送优先走互动召回（is_wakeup，独立配额不占每日额度；C2C 专属） */
+  wakeup: boolean;
 }
 
 export interface ImQQBotConfig {
@@ -183,11 +185,13 @@ export const ConfigSchema: Schema<ImQQBotConfig> = Schema.object({
   }).description('附件发送配置'),
   proactive: Schema.object({
     enabled: Schema.boolean().default(true).description('是否启用主动消息预算闸门（被动回复不受限）'),
-    globalDaily: Schema.number().default(20).description('全局每日主动消息上限（0 = 不限；平台 bot 级月度额度约 1000 条，按天 20 保守）'),
-    perTargetDaily: Schema.number().default(1).description('单目标每日主动消息上限（0 = 不限；平台「互动召回」对单用户是 30 天内 4 个周期各 1 条，当天仅 1 条名额，故默认 1）'),
+    globalDaily: Schema.number().default(100).description('全局每日普通主动消息上限（0 = 不限；平台 bot 级未认证 30qpm，闸门只防失控）'),
+    perTargetDaily: Schema.number().default(20).description('单目标每日普通主动上限（0 = 不限；平台单关系上限 1000 条/日，默认取零头防刷屏）'),
+    wakeup: Schema.boolean().default(true).description('主动推送优先走互动召回（is_wakeup：30 天 4 周期各 1 条的独立配额，不占每日主动额度；失败自动转普通主动）'),
   }).default({
     enabled: true,
-    globalDaily: 20,
-    perTargetDaily: 1,
-  }).description('主动消息每日配额'),
+    globalDaily: 100,
+    perTargetDaily: 20,
+    wakeup: true,
+  }).description('主动消息配置'),
 });

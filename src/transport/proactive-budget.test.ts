@@ -63,3 +63,19 @@ describe('ProactiveBudget', () => {
     expect(b.snapshot().skipped).toBe(2);
   });
 });
+
+describe('ProactiveBudget wakeup counter', () => {
+  it('recordWakeup 独立计数、跨进程持久化、不占用主动额度', () => {
+    const f = join(dir, 'nested', 'wakeup.json');
+    rmSync(f, { force: true });
+    const b = new ProactiveBudget(f, { globalDaily: 1, perTargetDaily: 1 });
+    b.recordWakeup();
+    b.recordWakeup();
+    // 主动额度不受召回计数影响
+    expect(b.tryConsume('c2c', 'U1').ok).toBe(true);
+    expect(b.snapshot('c2c', 'U1').wakeupUsed).toBe(2);
+    // 新实例读到同一计数
+    const b2 = new ProactiveBudget(f, { globalDaily: 1, perTargetDaily: 1 });
+    expect(b2.snapshot().wakeupUsed).toBe(2);
+  });
+});

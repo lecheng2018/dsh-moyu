@@ -42,6 +42,7 @@ export function quotaCommand({ manager }: CommandDeps): CategorizedCommand {
         lines.push(qline);
       }
       if (snap.skipped > 0) lines.push(`⚠️ 已因额度跳过 ${snap.skipped} 条主动消息（文本类已进暂存箱）`);
+      lines.push(`🔔 互动召回: 今日已发 ${snap.wakeupUsed} 条（30 天 4 周期各 1 条的独立配额，你发一句消息即重置计时）`);
       lines.push(`重置: ${snap.resetAt}`);
       return lines.join('\n');
     },

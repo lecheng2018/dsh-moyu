@@ -177,17 +177,17 @@ export class SessionManager {
       if (prompt) {
         sections.push({ name: 'qqbot:scope-prompt', order: 90, text: prompt });
       }
-      // 主动消息剩余额度：让模型自己掂量「稍后主动找你」这类承诺能不能兑现
+      // 主动推送策略提示：让模型知道优先级与剩余额度，不轻易做兑现不了的承诺
       if (this.proactiveBudget) {
         const snap = this.proactiveBudget.snapshot(record.scope, record.peerId);
         if (snap.remainingGlobal !== null || snap.remainingTarget !== null) {
           const parts: string[] = [];
-          if (snap.remainingGlobal !== null) parts.push(`全局剩余 ${snap.remainingGlobal} 条`);
+          if (snap.remainingGlobal !== null) parts.push(`普通主动通道今日全局剩余 ${snap.remainingGlobal} 条`);
           if (snap.remainingTarget !== null) parts.push(`本${record.scope === 'group' ? '群' : '用户'}剩余 ${snap.remainingTarget} 条`);
           sections.push({
             name: 'qqbot:proactive-quota',
             order: 91,
-            text: `主动消息每日配额:今日${parts.join('，')}。超出配额的消息不会发出;不要轻易承诺「稍后我主动找你/汇报」,优先在当前回复里把事说完,确需后续主动推送时先告知用户额度限制。`,
+            text: `主动推送策略:AI 的主动推送优先走「互动召回」通道(独立小配额,${record.scope === 'group' ? '群聊不适用,仅私聊' : '你每发一句消息就会重置它的计时'});${parts.join('，')}。超出配额的消息会被暂存、等对方下次来消息才送达。不要轻易承诺「稍后我主动找你/汇报」,优先在当前回复里把事说完;确需后续推送时一次说清,不要连发多条。`,
           });
         }
       }

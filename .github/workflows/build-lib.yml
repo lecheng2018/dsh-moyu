@@ -1,0 +1,29 @@
+# 构建产物 lib/ 入库(GitHub 安装开箱即用,上游惯例)——每次 push 自动重建回写,
+# 防止 src/ 前进而 lib/ 停留在旧编译产物(本仓库踩过一次)。
+name: build-lib
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: npx vitest run
+      - name: Commit lib if changed
+        run: |
+          git config user.name "lecheng2018"
+          git config user.email "41589620+lecheng2018@users.noreply.github.com"
+          git add lib
+          git diff --cached --quiet || (git commit -m "ci: rebuild lib [skip ci]" && git push)

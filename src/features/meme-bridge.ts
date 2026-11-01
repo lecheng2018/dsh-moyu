@@ -18,6 +18,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { getProfileDir } from '../shared/index.ts';
 import type { Logger } from '../types.ts';
 
 /** 与 dsh-meme memes.js 的 dshHome() 对齐：环境变量优先，规避 Windows HOME 缺失回落 CWD 的历史 bug */
@@ -44,7 +45,12 @@ function readMemeSettings(): Record<string, unknown> | undefined {
 }
 
 /**
- * 探测 dsh-meme 图库根目录（可多个：默认包目录 + 用户 packsDir 覆盖）。
+ * 探测 dsh-meme 图库根目录（三条路径）：
+ *   1. 默认包目录 ~/.dsh/meme-packs（用户自装/市场装的图库都在这）
+ *   2. 用户设置覆盖 packsDir（dsh-expression.json）
+ *   3. **dsh-meme 插件包内置图库** node_modules/dsh-meme/memes（如 dafeiyu-001）——
+ *      官方 README 明确要求白名单也要含它，否则 send_meme 返回内置包候选时
+ *      qqbot_send_file 会以「不在允许的目录内」拒发
  * 只返回真实存在的目录；什么都没有时返回空数组。
  */
 export function discoverMemeRoots(logger?: Logger): string[] {
@@ -56,7 +62,11 @@ export function discoverMemeRoots(logger?: Logger): string[] {
   };
   try {
     push(join(dshMemeHome(), '.dsh', 'meme-packs'));
-    push(readMemeSettings()?.packsDir);
+    const settings = readMemeSettings();
+    push(settings?.packsDir);
+    // 插件包内置图库：从 profile 的 node_modules 找 dsh-meme（与本插件同仓安装）
+    const profileDir = getProfileDir();
+    if (profileDir) push(join(profileDir, 'node_modules', 'dsh-meme', 'memes'));
   } catch (err) {
     logger?.warn?.(`meme-bridge: 图库目录探测失败（忽略）: ${err instanceof Error ? err.message : String(err)}`);
   }

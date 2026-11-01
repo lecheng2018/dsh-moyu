@@ -2,6 +2,10 @@
 
 > [English](./CHANGELOG_EN.md)
 
+## [0.5.5-zhoukai.10] - 2026-11-01
+
+### 修正
+- **meme 桥补上内置图库白名单**：dsh-meme 官方文档要求 sendFile 白名单除 `~/.dsh/meme-packs` 外还要含**插件包内置图库**（`node_modules/dsh-meme/memes`，如 dafeiyu-001）。discoverMemeRoots 现在自动探测该路径（经 getProfileDir 定位 profile node_modules），send_meme 返回内置包候选不再被拒
 ## [0.5.5-zhoukai.9] - 2026-11-01
 
 ### 新增（借鉴 dsh-roost / SurfCore MIT 模式，思想重写）

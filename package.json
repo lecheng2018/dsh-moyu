@@ -1,17 +1,6 @@
 {
   "name": "@zhoukai/dsh-qqbot",
-  "version": "0.5.5-zhoukai.10",
-  "files": [
-    "lib",
-    "locale",
-    "assets",
-    "cordis.patch.yml",
-    "cordis.yml",
-    "README.md",
-    "README_EN.md",
-    "CHANGELOG.md",
-    "LICENSE"
-  ],
+  "version": "0.5.5-zhoukai.11",
   "icon": "./assets/icons/qq_logo.svg",
   "description": "在 QQ 私聊和群聊里直接对话 DeepSeek Harness。 Chat with DeepSeek Harness in QQ private and group chats.",
   "type": "module",

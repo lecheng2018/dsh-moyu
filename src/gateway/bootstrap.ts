@@ -24,6 +24,8 @@ import { ProactiveQueue } from '../transport/proactive-queue.ts';
 import { ProactivePermission } from '../features/proactive-permission.ts';
 import { ClosingStore } from '../features/closing.ts';
 import { registerQqSendTools } from '../features/qq-send-tools.ts';
+import { AwakeScheduler } from '../features/awake.ts';
+import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import { PLUGIN_HOME } from '../shared/dirs.ts';
 import { buildUserAgent } from '../shared/index.ts';
 import type { ImQQBotConfig } from '../config.ts';
@@ -148,6 +150,26 @@ export async function bootstrapGateway(
     ? new ClosingStore(resolve(PLUGIN_HOME, 'closing.json'), config.closing)
     : undefined;
   manager.closingStore = closingStore;
+  // 觉醒式主动搭话:打分 → 问模型 → 模型可 skip;开口走互动召回(独立配额)
+  const awake = config.awake.enabled
+    ? new AwakeScheduler({
+        manager,
+        cfg: config.awake,
+        storePath: resolve(PLUGIN_HOME, 'awake.json'),
+        budget: proactiveBudget ?? undefined,
+        closing: closingStore,
+        permission: proactivePermission,
+        probe: (record, text) => {
+          record.awakeProbeTurn = true;
+          record.agent.followup(createUserMessage({
+            content: [{ type: 'text' as const, text }],
+            source: { kind: 'user' as const },
+          }));
+        },
+        logger,
+      })
+    : undefined;
+  manager.awake = awake;
   const gateProactive = <T>(
     target: ReplyTarget,
     resolved: ReplyTarget,
@@ -363,8 +385,10 @@ export async function bootstrapGateway(
         logger.error(`Bot start failed: ${err instanceof Error ? err.message : String(err)}`);
       });
 
+      awake?.start();
       return async () => {
         logger.info('Shutting down');
+        awake?.stop();
         await manager.disposeAll();
         bot.stop();
       };

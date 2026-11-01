@@ -46,6 +46,13 @@ export function statusCommand({ manager }: CommandDeps): CategorizedCommand {
           lines.push(`对话收尾: ${mins} 分钟前 — ${rec.note || '对方道别'}`);
         }
       }
+      const awake = manager.awake?.snapshot();
+      if (awake?.enabled) {
+        const nw = typeof awake.nextWakeAt === 'number' && awake.nextWakeAt > Date.now()
+          ? new Date(awake.nextWakeAt).toLocaleString('zh-CN', { hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+          : '稍后';
+        lines.push(`觉醒搭话: 下次评估 ${nw},今日主动开口 ${awake.speaksToday} 次(随性 ${awake.casualToday} 次,连续 skip ${awake.skipStreak})`);
+      }
       const budget = manager.proactiveBudget;
       if (budget) {
         const snap = budget.snapshot(scope, peerId);

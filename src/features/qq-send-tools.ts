@@ -129,6 +129,7 @@ export function registerQqSendTools(ctx: ToolCtx, deps: QqSendToolsDeps): void {
       await deps.send(record.replyTarget, prefix + text);
       record.turnQqSendCount = count + 1;
       record.qqSendUsedThisTurn = true;
+      record.awakeProbeTurn = false; // 工具开口=选择说话,评估轮标记解除
       deps.logger?.info?.(`zhoukai-qqbot: qq_send 第 ${count + 1}/${maxParts} 条 → ${record.sessionKey}`);
       return { part: count + 1, ...(note ? { note } : {}) };
     },

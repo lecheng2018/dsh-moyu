@@ -130,6 +130,7 @@ export async function handleInbound(
   record.lastUserText = agentBody;
   record.turnQqSendCount = 0;
   record.qqSendUsedThisTurn = false;
+  record.awakeProbeTurn = false;
 
   // ── 构建 UserMessage → followup ──
   const content: ContentBlock[] = [{ type: 'text' as const, text: agentBody }];

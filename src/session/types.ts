@@ -135,6 +135,8 @@ export interface SessionRecord {
   turnQqSendCount?: number;
   /** 最近一条用户消息原文(qq_close 判断「对方还在提问」用) */
   lastUserText?: string;
+  /** 本轮是觉醒搭话的评估轮:outbound 据此在模型回复 <<skip>> 时压制整轮输出 */
+  awakeProbeTurn?: boolean;
 }
 
 /** 会话状态信息（/status 用） */

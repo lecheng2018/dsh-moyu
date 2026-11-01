@@ -11,6 +11,7 @@ import { chunkMarkdownText } from './chunker.ts';
 import { OutboundBuffer, type QQBotSender } from './outbound-buffer.ts';
 import { formatToolResult, type ToolsRegistryLike, type ToolResultData } from './tool-presenter.ts';
 import type { DeliverablesDelivererLike } from './deliverables.ts';
+import { SKIP_MARKER } from '../features/awake.ts';
 import {
   parseEvent,
   extractTurnError,
@@ -180,6 +181,19 @@ class OutboundRouter {
 
   /** 完整 assistant 消息：有流式 buffer 则 flush，否则直接发送文本块 */
   private onMessage(sessionId: string, record: SessionRecord, event: MessageEvent): void {
+    const probeText: string[] = [];
+    for (const block of event.content) {
+      if (block.type === 'text' && block.text) probeText.push(block.text);
+    }
+    // 觉醒评估轮:模型选择不说话(skip 是正常结局)→ 整段压制,不打扰用户
+    if (record.awakeProbeTurn && probeText.join('
+').trim() === SKIP_MARKER) {
+      this.logger.debug(`zhoukai-qqbot: awake probe skip suppressed sessionId=${sessionId}`);
+      this.buffers.get(sessionId)?.cancel();
+      this.buffers.delete(sessionId);
+      return;
+    }
+    if (record.awakeProbeTurn) record.awakeProbeTurn = false; // 模型选择开口:按正常路径投递(主动时走互动召回)
     // 本轮用过 qq_send：模型已分条发言，turn 末尾正文压掉（否则同一内容发两遍）。
     // 模型被告知「调了 qq_send 就别重复正文」——这里兜底执行。
     if (record.qqSendUsedThisTurn) {
@@ -257,9 +271,22 @@ class OutboundRouter {
    */
   private onTurnEnd(sessionId: string, record: SessionRecord, event: TurnEndEvent): void {
     const buffer = this.buffers.get(sessionId);
+    // 觉醒评估轮:buffer 里若只有 skip 标记 → 压制;评估轮的失败也不打扰用户
+    const isProbe = record.awakeProbeTurn;
+    if (isProbe && buffer !== undefined && buffer.text.trim() === SKIP_MARKER) {
+      this.logger.debug(`zhoukai-qqbot: awake probe skip suppressed (turn/end) sessionId=${sessionId}`);
+      buffer.cancel();
+      this.buffers.delete(sessionId);
+      record.awakeProbeTurn = false;
+    }
     // 文本 flush 可等待，保证回复先于交付文件到达用户
     let flushTask: Promise<void> = Promise.resolve();
-    if (record.qqSendUsedThisTurn) {
+    if (isProbe) {
+      // 评估轮异常结束不打扰用户;若 buffer 有实际内容(模型开口)会在 assistant/message 已投递
+      buffer?.cancel();
+      this.buffers.delete(sessionId);
+      record.awakeProbeTurn = false;
+    } else if (record.qqSendUsedThisTurn) {
       // qq_send 已分条发言：turn 末尾正文压制（同 onMessage），只清状态
       buffer?.cancel();
       this.buffers.delete(sessionId);

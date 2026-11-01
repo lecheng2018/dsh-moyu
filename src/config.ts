@@ -72,6 +72,26 @@ export interface QqSendConfig {
   maxParts: number;
 }
 
+/** 觉醒式主动搭话：打分 → 问模型 → 模型可 skip（决策型，非定时器硬发） */
+export interface AwakeConfig {
+  enabled: boolean;
+  /** 清醒时段（小时，左闭右开，支持跨零点）：时段外不评估不搭话 */
+  awakeFrom: number;
+  awakeTo: number;
+  /** 多久没聊算「想你」（小时） */
+  missAfterHours: number;
+  /** 机会分阈值：低于它连模型都不问（省 token） */
+  minScore: number;
+  /** 随性搭话每天最多几次 */
+  casualPerDay: number;
+  /** 每目标每天最多主动开口几次（含全部类型） */
+  maxSpeaksPerDay: number;
+  /** 模型 skip 后的退避起点（分钟），每连续 skip 翻倍 */
+  skipBackoffMinutes: number;
+  /** 退避上限（分钟） */
+  skipBackoffMaxMinutes: number;
+}
+
 /** 对话收尾状态（仅私聊）：qq_close 记录「收在哪/下次怎么接」 */
 export interface ClosingSettings {
   enabled: boolean;
@@ -134,6 +154,8 @@ export interface ImQQBotConfig {
   qqSend: QqSendConfig;
   /** 对话收尾状态（仅私聊） */
   closing: ClosingSettings;
+  /** 觉醒式主动搭话 */
+  awake: AwakeConfig;
 }
 
 /** 访问控制子 Schema（独立导出：config 路由的服务端校验复用） */
@@ -235,4 +257,25 @@ export const ConfigSchema: Schema<ImQQBotConfig> = Schema.object({
     coolMinutes: 90,
     maxChats: 200,
   }).description('对话收尾'),
+  awake: Schema.object({
+    enabled: Schema.boolean().default(true).description('觉醒式主动搭话:打分后问模型「要不要说」,模型可 skip;仅私聊,走互动召回通道'),
+    awakeFrom: Schema.number().default(8).description('清醒时段开始(小时)'),
+    awakeTo: Schema.number().default(23).description('清醒时段结束(小时,不含)'),
+    missAfterHours: Schema.number().default(6).description('多久没聊算「想你」(小时)'),
+    minScore: Schema.number().default(0.35).description('机会分阈值(0-1),低于它不问模型'),
+    casualPerDay: Schema.number().default(1).description('随性搭话每天最多几次'),
+    maxSpeaksPerDay: Schema.number().default(3).description('每目标每天最多主动开口几次(全部类型合计)'),
+    skipBackoffMinutes: Schema.number().default(30).description('模型 skip 后的退避起点(分钟),连续 skip 翻倍'),
+    skipBackoffMaxMinutes: Schema.number().default(240).description('skip 退避上限(分钟)'),
+  }).default({
+    enabled: true,
+    awakeFrom: 8,
+    awakeTo: 23,
+    missAfterHours: 6,
+    minScore: 0.35,
+    casualPerDay: 1,
+    maxSpeaksPerDay: 3,
+    skipBackoffMinutes: 30,
+    skipBackoffMaxMinutes: 240,
+  }).description('觉醒式主动搭话'),
 });

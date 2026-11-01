@@ -122,6 +122,8 @@ export class SessionManager {
   public proactivePermission?: import('../features/proactive-permission.ts').ProactivePermission;
   /** 由 bootstrap 注入的对话收尾状态（qq_close 写入，system prompt 注入衔接） */
   public closingStore?: import('../features/closing.ts').ClosingStore;
+  /** 由 bootstrap 注入的觉醒搭话调度器（/bot-status 快照用） */
+  public awake?: import('../features/awake.ts').AwakeScheduler;
   /** 由 bootstrap 注入的运行时元信息（/bot-status 健康面板用） */
   public memeRoots: string[] = [];
 

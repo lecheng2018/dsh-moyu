@@ -489,6 +489,11 @@ export class SessionManager {
 
   // ── Session 生命周期管理 ──
 
+  /** 全部会话记录快照(觉醒调度器枚举私聊目标用) */
+  public listRecords(): SessionRecord[] {
+    return [...this.sessions.values()];
+  }
+
   private sessionKey(scope: ChatScope, peerId: string): string {
     return `qqbot:${this.config.appId}:${scope}:${peerId}`;
   }

@@ -55,7 +55,7 @@ interface AwakeState {
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
-const SKIP_MARKER = '<<skip>>';
+export const SKIP_MARKER = '<<skip>>';
 
 // ── 纯函数评分 ──
 
@@ -259,11 +259,11 @@ export class AwakeScheduler {
   }
 
   private async evaluate(): Promise<void> {
-    const { cfg, manager, closing, permission, budget } = this.deps;
+    const { cfg, closing, permission } = this.deps;
     if (!withinAwakeHours(cfg.awakeFrom, cfg.awakeTo)) return;
 
     // 候选:有会话记录的私聊目标(通常就是主人)
-    const records = [...manager.sessions.values()].filter((r) => r.replyTarget.scope === 'c2c');
+    const records = this.deps.manager.listRecords().filter((r) => r.replyTarget.scope === 'c2c');
     if (records.length === 0) return;
 
     const candidates: Opportunity[] = [];
@@ -307,7 +307,7 @@ export class AwakeScheduler {
     this.deps.probe(record, probePrompt(best, lastUserText));
 
     // 结果学习:+3 分钟对比发送计数(涨了=说了,没涨=skip/失败 → 退避)
-    const budget = budget0(this.deps.budget);
+    const budget = this.deps.budget;
     const before = budget ? budget.snapshot().wakeupUsed + (budget.snapshot().usedGlobal ?? 0) : 0;
     const chatKey = record.sessionKey;
     setTimeout(() => {
@@ -326,9 +326,4 @@ export class AwakeScheduler {
       }
     }, 3 * MINUTE).unref?.();
   }
-}
-
-/** budget 可选时的空快照兜底 */
-function budget0(b: ProactiveBudget | undefined): ProactiveBudget | undefined {
-  return b;
 }

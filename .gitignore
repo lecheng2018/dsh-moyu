@@ -9,3 +9,6 @@ cordis.dev.yml
 # lib/ 构建产物入库（GitHub 安装开箱即用），但排除类型与 sourcemap
 lib/**/*.d.ts
 lib/**/*.map
+
+# 本地 NAS 运维草稿(含部署管线,不入库)
+nas-*.sh

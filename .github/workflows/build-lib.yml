@@ -4,8 +4,15 @@ name: build-lib
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'lib/**'
+      - 'CHANGELOG*.md'
+      - 'README*.md'
 permissions:
   contents: write
+concurrency:
+  group: build-lib-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,6 +28,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: npx vitest run
+      - name: Verify build output
+        run: |
+          test -f lib/index.js || { echo "::error::lib/index.js missing"; exit 1; }
+          test -f lib/features/qq-send-tools.js || { echo "::error::lib/features/qq-send-tools.js missing (src 有新文件但没产出)"; exit 1; }
+          grep -q "registerQqSendTools" lib/gateway/bootstrap.js || { echo "::error::qq_send 没有接线到 bootstrap"; exit 1; }
       - name: Commit lib if changed
         run: |
           git config user.name "lecheng2018"

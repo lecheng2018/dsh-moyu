@@ -1,0 +1,48 @@
+# 打 tag 自动出 tgz(tarball) 挂到 GitHub Release,供 file:/本地或离线安装。
+# 手动也能跑:Actions 页面 Run workflow 选分支。
+name: release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: npx vitest run
+      - name: Verify build output
+        run: |
+          test -f lib/features/qq-send-tools.js || { echo "::error::qq-send-tools not compiled"; exit 1; }
+          grep -q "registerQqSendTools" lib/gateway/bootstrap.js || { echo "::error::qq_send not wired"; exit 1; }
+      - name: Pack
+        id: pack
+        run: |
+          mkdir -p /tmp/dist && npm pack --pack-destination /tmp/dist
+          ls -l /tmp/dist
+          echo "tgz=$(ls /tmp/dist/*.tgz)" >> "$GITHUB_OUTPUT"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tarball
+          path: /tmp/dist/*.tgz
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: /tmp/dist/*.tgz
+          generate_release_notes: true

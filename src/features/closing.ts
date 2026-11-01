@@ -16,7 +16,6 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { Logger } from '../types.ts';
 
 export interface ClosingConfig {
   enabled: boolean;
@@ -47,7 +46,7 @@ export class ClosingStore {
   private readonly cfg: ClosingConfig;
   private state: ClosingState;
 
-  constructor(storePath: string, cfg: ClosingConfig, private readonly logger?: Logger) {
+  constructor(storePath: string, cfg: ClosingConfig) {
     this.file = storePath;
     this.cfg = cfg;
     this.state = this.load();

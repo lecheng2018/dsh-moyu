@@ -145,7 +145,7 @@ export async function bootstrapGateway(
   manager.proactivePermission = proactivePermission;
   // 对话收尾状态（qq_close 写入，system prompt 注入衔接；仅私聊语义）
   const closingStore = config.closing.enabled
-    ? new ClosingStore(resolve(PLUGIN_HOME, 'closing.json'), config.closing, logger)
+    ? new ClosingStore(resolve(PLUGIN_HOME, 'closing.json'), config.closing)
     : undefined;
   manager.closingStore = closingStore;
   const gateProactive = <T>(

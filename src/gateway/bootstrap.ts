@@ -338,7 +338,8 @@ export async function bootstrapGateway(
       send: (target, text) => sender.sendMarkdown(target, text),
       maxParts: effectiveConfig.qqSend.maxParts,
       closing: effectiveConfig.closing.enabled ? closingStore : undefined,
-    }, logger);
+      logger,
+    });
   }
 
   // ── 图文卡片工具注册（qqbot_send_card，msg_type=8） ──

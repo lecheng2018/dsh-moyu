@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,6 +9,7 @@ import {
 } from './awake.ts';
 import { ClosingStore } from './closing.ts';
 import type { AwakeConfig } from '../config.ts';
+import type { SessionManager } from '../session/index.ts';
 
 const CFG: AwakeConfig = {
   enabled: true, awakeFrom: 8, awakeTo: 23, missAfterHours: 6,
@@ -29,9 +31,9 @@ describe('scoreAgreement', () => {
   it('过了冷却 → 0.7,带收尾备注', () => {
     // 手动把 closedAt 拨回 3 小时前
     const f = join(dir, 'c.json');
-    const raw = JSON.parse(require('node:fs').readFileSync(f, 'utf8'));
+    const raw = JSON.parse(readFileSync(f, 'utf8'));
     raw.chats['k-cool'].closedAt = Date.now() - 3 * 3600 * 1000;
-    require('node:fs').writeFileSync(f, JSON.stringify(raw));
+    writeFileSync(f, JSON.stringify(raw));
     const store2 = new ClosingStore(f, { enabled: true, ttlDays: 7, coolMinutes: 90, maxChats: 200 });
     const opp = scoreAgreement(store2, 'k-cool', 90);
     expect(opp?.score).toBe(0.7);
@@ -59,15 +61,11 @@ describe('pickBest', () => {
     expect(best?.kind).toBe('miss');
   });
   it('同分时 agreement > miss > casual', () => {
-    const a = { ...scoreAgreement(null, 'x', 90), record: null as never };
-    const m = { ...scoreMiss(12, 6), record: null as never };
-    void m; // 同分构造:直接用分数相同的假机会
     const tied = [
       { kind: 'casual' as const, score: 0.6, reason: '', record: null as never },
       { kind: 'agreement' as const, score: 0.6, reason: '', record: null as never },
     ];
     expect(pickBest(tied, 0.35)?.kind).toBe('agreement');
-    void a;
   });
 });
 
@@ -113,7 +111,7 @@ describe('AwakeScheduler', () => {
   it('start 后 state.nextWakeAt 落在未来,stop 清理', () => {
     const f = join(mkdtempSync(join(tmpdir(), 'awake-')), 'awake.json');
     const s = new AwakeScheduler({
-      manager: { sessions: new Map() } as unknown as Parameters<AwakeScheduler['snapshot']> extends never ? never : ConstructorParameters<typeof AwakeScheduler>[0]['manager'],
+      manager: { sessions: new Map() } as unknown as ConstructorParameters<typeof AwakeScheduler>[0]['manager'],
       cfg: CFG,
       storePath: f,
       probe: () => {},

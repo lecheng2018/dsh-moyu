@@ -186,8 +186,7 @@ class OutboundRouter {
       if (block.type === 'text' && block.text) probeText.push(block.text);
     }
     // 觉醒评估轮:模型选择不说话(skip 是正常结局)→ 整段压制,不打扰用户
-    if (record.awakeProbeTurn && probeText.join('
-').trim() === SKIP_MARKER) {
+    if (record.awakeProbeTurn && probeText.join('\n').trim() === SKIP_MARKER) {
       this.logger.debug(`zhoukai-qqbot: awake probe skip suppressed sessionId=${sessionId}`);
       this.buffers.get(sessionId)?.cancel();
       this.buffers.delete(sessionId);

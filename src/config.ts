@@ -1,5 +1,5 @@
 /**
- * zhoukai-dsh-qqbot 插件配置 Schema
+ * dsh-moyu 插件配置 Schema
  */
 import Schema from '@deepseek-ai/schemastery';
 

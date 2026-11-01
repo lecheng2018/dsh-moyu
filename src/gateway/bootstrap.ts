@@ -338,7 +338,7 @@ export async function bootstrapGateway(
   }
 
   bot.on('ready', () => {
-    console.log(`[zhoukai-qqbot] Bot ready! appId=${config.appId}`);
+    console.log(`[moyu-qqbot] Bot ready! appId=${config.appId}`);
   });
 
   // ── 富媒体过期清理 ──
@@ -392,5 +392,5 @@ export async function bootstrapGateway(
         await manager.disposeAll();
         bot.stop();
       };
-    }, 'zhoukai-qqbot.lifecycle');
+    }, 'moyu-qqbot.lifecycle');
 }

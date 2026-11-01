@@ -254,10 +254,10 @@ describe('bind-routes', () => {
   });
 
   it('POST unbind（默认实现）：删除 patch 凭据并清除进程 env（否则 HMR 后仍读到旧凭据，状态停留 bound）', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-unbind-'));
+    const dir = mkdtempSync(join(tmpdir(), 'moyu-qqbot-unbind-'));
     const patchPath = join(dir, 'cordis.patch.yml');
     writeFileSync(patchPath, [
-      '- id: zhoukai-qqbot',
+      '- id: moyu-qqbot',
       '  config:',
       '    appId: "102120114"',
       '    appSecret: "s3cr3t"',
@@ -297,11 +297,11 @@ describe('bind-routes', () => {
   });
 
   it('POST unbind（幂等重入）：patch 已无凭据时仍写回文件（触发宿主 HMR，bound fiber 才会卸载）', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-unbind-idem-'));
+    const dir = mkdtempSync(join(tmpdir(), 'moyu-qqbot-unbind-idem-'));
     const patchPath = join(dir, 'cordis.patch.yml');
     // 凭据已被上一次解绑删除，但 fiber 未重载（无 HMR）的场景
     writeFileSync(patchPath, [
-      '- id: zhoukai-qqbot',
+      '- id: moyu-qqbot',
       '  config:',
       '    requireMention: true',
       '',

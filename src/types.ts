@@ -1,5 +1,5 @@
 /**
- * zhoukai-dsh-qqbot 插件内部类型定义
+ * dsh-moyu 插件内部类型定义
  */
 
 /** 会话作用域 */

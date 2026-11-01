@@ -33,7 +33,7 @@ export function attachmentProcessor(config: ImQQBotConfig, logger: Logger) {
         ctx.state.downloadedQuoteFiles = downloadedQuote;
       }
     } catch (err) {
-      logger.warn(`zhoukai-qqbot: attachment download failed: ${err instanceof Error ? err.message : String(err)}`);
+      logger.warn(`moyu-qqbot: attachment download failed: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     await next();

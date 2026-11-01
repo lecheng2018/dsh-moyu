@@ -2,6 +2,11 @@
 
 > [English](./CHANGELOG_EN.md)
 
+## [0.5.5-moyu.1] - 2026-11-01
+
+### 变更
+- **插件更名**:包名 `@zhoukai/dsh-qqbot` → **`dsh-moyu`**(摸鱼),插件 id `zhoukai-qqbot` → `moyu-qqbot`;功能与配置键完全不变,工具名(`qqbot_send_file` / `qq_send` / `qq_close` / `qqbot_send_card`)保持不变(dsh-meme 对接依赖)
+- 数据目录 `~/.dsh-qqbot` 保持不变(预算/暂存/收尾/觉醒状态无缝延续)
 ## [0.5.5-zhoukai.11] - 2026-11-01
 
 ### 新增:觉醒式主动搭话(借鉴 dsh-roost/awake 决策型设计,思想重写)

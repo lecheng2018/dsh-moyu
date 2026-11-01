@@ -39,10 +39,10 @@ export async function cleanupExpiredMedia(ttlHours: number, logger?: Logger): Pr
       const info = await stat(filePath);
       if (now - info.mtimeMs <= ttlMs) return false;
       await rm(filePath, { force: true });
-      logger?.debug(`zhoukai-qqbot: cleaned expired media: ${name}`);
+      logger?.debug(`moyu-qqbot: cleaned expired media: ${name}`);
       return true;
     } catch (err) {
-      logger?.warn(`zhoukai-qqbot: media cleanup failed for ${name}: ${err instanceof Error ? err.message : String(err)}`);
+      logger?.warn(`moyu-qqbot: media cleanup failed for ${name}: ${err instanceof Error ? err.message : String(err)}`);
       return false;
     }
   }));
@@ -59,15 +59,15 @@ export async function cleanupExpiredMedia(ttlHours: number, logger?: Logger): Pr
 export function startMediaCleanup(ctx: Context, ttlHours: number, logger: Logger): void {
   if (ttlHours <= 0) return;
 
-  logger.info(`zhoukai-qqbot: media cleanup started (ttl=${ttlHours}h, interval=1h, root=${MEDIA_ROOT})`);
+  logger.info(`moyu-qqbot: media cleanup started (ttl=${ttlHours}h, interval=1h, root=${MEDIA_ROOT})`);
 
   // 启动时立即清理一次（异步，不阻塞启动流程）
   void cleanupExpiredMedia(ttlHours, logger)
     .then((cleaned) => {
-      if (cleaned > 0) logger.info(`zhoukai-qqbot: cleaned ${cleaned} expired media files`);
+      if (cleaned > 0) logger.info(`moyu-qqbot: cleaned ${cleaned} expired media files`);
     })
     .catch((err) => {
-      logger.warn(`zhoukai-qqbot: media cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
+      logger.warn(`moyu-qqbot: media cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
     });
 
   (ctx as unknown as { effect(fn: () => (() => Promise<void>) | void, name?: string): void })
@@ -75,13 +75,13 @@ export function startMediaCleanup(ctx: Context, ttlHours: number, logger: Logger
       const timer = setInterval(() => {
         void cleanupExpiredMedia(ttlHours, logger)
           .then((n) => {
-            if (n > 0) logger.info(`zhoukai-qqbot: cleaned ${n} expired media files`);
+            if (n > 0) logger.info(`moyu-qqbot: cleaned ${n} expired media files`);
           })
           .catch((err) => {
-            logger.warn(`zhoukai-qqbot: media cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
+            logger.warn(`moyu-qqbot: media cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
           });
       }, CLEANUP_INTERVAL_MS);
 
       return async () => { clearInterval(timer); };
-    }, 'zhoukai-qqbot.media-cleanup');
+    }, 'moyu-qqbot.media-cleanup');
 }

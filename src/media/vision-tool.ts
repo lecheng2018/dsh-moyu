@@ -121,7 +121,7 @@ async function callVision(
   signal: AbortSignal,
 ): Promise<string> {
   // v4 producer-owned source kind（迁移器同款改写）；本地 dsh-llm 类型尚为 v3 联合，做类型桥接
-  const visionSource = { kind: 'plugin:zhoukai-dsh-qqbot' } as unknown as { kind: 'plugin'; plugin: string };
+  const visionSource = { kind: 'plugin:dsh-moyu' } as unknown as { kind: 'plugin'; plugin: string };
 
   const message = createUserMessage({
     content: [
@@ -210,29 +210,29 @@ export function ensureVisionInputModal(vision: VisionConfig, logger: Logger): vo
     // 逐层定位 llm-pi-ai.providers.{provider}.models（原地遍历，保留原文）
     const piAi = root.get('llm-pi-ai', true);
     if (!isMap(piAi)) {
-      logger.warn(`zhoukai-qqbot: settings.yaml 未找到 llm-pi-ai，请手动确认 vision 模型已声明 image 输入`);
+      logger.warn(`moyu-qqbot: settings.yaml 未找到 llm-pi-ai，请手动确认 vision 模型已声明 image 输入`);
       return;
     }
     const providers = piAi.get('providers', true);
     if (!isMap(providers)) {
-      logger.warn(`zhoukai-qqbot: settings.yaml 未找到 llm-pi-ai.providers.${vision.provider}，请手动确认 vision 模型已声明 image 输入`);
+      logger.warn(`moyu-qqbot: settings.yaml 未找到 llm-pi-ai.providers.${vision.provider}，请手动确认 vision 模型已声明 image 输入`);
       return;
     }
     const provider = providers.get(vision.provider, true);
     if (!isMap(provider)) {
-      logger.warn(`zhoukai-qqbot: settings.yaml 未找到 llm-pi-ai.providers.${vision.provider}，请手动确认 vision 模型已声明 image 输入`);
+      logger.warn(`moyu-qqbot: settings.yaml 未找到 llm-pi-ai.providers.${vision.provider}，请手动确认 vision 模型已声明 image 输入`);
       return;
     }
     const models = provider.get('models', true);
     if (!isSeq(models)) {
-      logger.warn(`zhoukai-qqbot: settings.yaml 未找到 llm-pi-ai.providers.${vision.provider}.models，请手动确认 vision 模型已声明 image 输入`);
+      logger.warn(`moyu-qqbot: settings.yaml 未找到 llm-pi-ai.providers.${vision.provider}.models，请手动确认 vision 模型已声明 image 输入`);
       return;
     }
     const model = models.items.find(
       (item): item is NonNullable<typeof item> => isMap(item) && isScalar(item.get('id', true)) && String(item.get('id', true)) === vision.model,
     );
     if (model === undefined || !isMap(model)) {
-      logger.warn(`zhoukai-qqbot: settings.yaml 未找到 vision 模型 ${vision.model}，请手动确认已声明 image 输入`);
+      logger.warn(`moyu-qqbot: settings.yaml 未找到 vision 模型 ${vision.model}，请手动确认已声明 image 输入`);
       return;
     }
 
@@ -246,7 +246,7 @@ export function ensureVisionInputModal(vision: VisionConfig, logger: Logger): vo
 
     // 乐观校验：写入窗口内被外部改动（宿主设置流程）则放弃，下次启动幂等重试
     if (readFileSync(settingsPath, 'utf8') !== before) {
-      logger.warn('zhoukai-qqbot: settings.yaml 在写入窗口内被外部修改，跳过 vision input 补写（下次启动重试）');
+      logger.warn('moyu-qqbot: settings.yaml 在写入窗口内被外部修改，跳过 vision input 补写（下次启动重试）');
       return;
     }
 
@@ -259,9 +259,9 @@ export function ensureVisionInputModal(vision: VisionConfig, logger: Logger): vo
       try { unlinkSync(tmpPath); } catch { /* 临时文件可能不存在 */ }
       throw err;
     }
-    logger.info(`zhoukai-qqbot: 已为 vision 模型补充 input: [text, image] (${vision.provider}/${vision.model})`);
+    logger.info(`moyu-qqbot: 已为 vision 模型补充 input: [text, image] (${vision.provider}/${vision.model})`);
   } catch (err) {
-    logger.warn(`zhoukai-qqbot: 检查 settings.yaml vision input 失败: ${err instanceof Error ? err.message : String(err)}`);
+    logger.warn(`moyu-qqbot: 检查 settings.yaml vision input 失败: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -269,7 +269,7 @@ export function ensureVisionInputModal(vision: VisionConfig, logger: Logger): vo
 export function registerDescribeImageTool(ctx: Context, vision: VisionConfig, logger: Logger): void {
   if (!vision.enabled) return;
   if (!vision.provider || !vision.model) {
-    logger.warn('zhoukai-qqbot: vision.provider/model 未配置，qqbot_describe_image 工具未注册');
+    logger.warn('moyu-qqbot: vision.provider/model 未配置，qqbot_describe_image 工具未注册');
     return;
   }
 
@@ -277,7 +277,7 @@ export function registerDescribeImageTool(ctx: Context, vision: VisionConfig, lo
   const llm = ctx.get('llm') as LlmRuntimeLike | undefined;
   const attachments = ctx.get('attachments') as AttachmentStoreLike | undefined;
   if (!tools?.register || !llm?.stream || !attachments?.saveImage) {
-    logger.warn('zhoukai-qqbot: tools/llm/attachments 服务不可用，qqbot_describe_image 工具未注册');
+    logger.warn('moyu-qqbot: tools/llm/attachments 服务不可用，qqbot_describe_image 工具未注册');
     return;
   }
 
@@ -334,5 +334,5 @@ export function registerDescribeImageTool(ctx: Context, vision: VisionConfig, lo
   };
 
   tools.register(definition);
-  logger.info(`zhoukai-qqbot: qqbot_describe_image 工具已注册 (provider=${vision.provider} model=${vision.model})`);
+  logger.info(`moyu-qqbot: qqbot_describe_image 工具已注册 (provider=${vision.provider} model=${vision.model})`);
 }

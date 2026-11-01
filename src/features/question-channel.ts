@@ -132,7 +132,7 @@ export class QuestionChannel {
     const uq = ctx.get('userQuestions') as UserQuestionsServiceLike | undefined;
     if (!uq || uq.__qqQuestionPatched) return;
     if (typeof uq.ask !== 'function') {
-      this.logger.warn('zhoukai-qqbot: userQuestions service lacks ask() — QQ question channel disabled');
+      this.logger.warn('moyu-qqbot: userQuestions service lacks ask() — QQ question channel disabled');
       return;
     }
 
@@ -146,7 +146,7 @@ export class QuestionChannel {
     };
     Object.defineProperty(uq, '__qqQuestionPatched', { value: true, configurable: true, enumerable: false });
     this.uq = uq;
-    this.logger.info('zhoukai-qqbot: QQ question channel installed');
+    this.logger.info('moyu-qqbot: QQ question channel installed');
   }
 
   public uninstall(): void {
@@ -252,7 +252,7 @@ export class QuestionChannel {
       }
       entry.timer = setTimeout(() => this.onTimeout(key), this.config.askTimeoutMs);
       this.pending.set(key, entry);
-      this.logger.info(`zhoukai-qqbot: question sent to QQ, waiting for answer key=${key}`);
+      this.logger.info(`moyu-qqbot: question sent to QQ, waiting for answer key=${key}`);
     });
   }
 
@@ -276,7 +276,7 @@ export class QuestionChannel {
     this.pending.delete(key);
     this.clearTimer(entry);
     this.removeAbort(entry);
-    this.logger.info(`zhoukai-qqbot: question answered via QQ key=${key}`);
+    this.logger.info(`moyu-qqbot: question answered via QQ key=${key}`);
     entry.resolve({ answers: entry.collected });
   }
 
@@ -294,13 +294,13 @@ export class QuestionChannel {
           await this.sender.sendMarkdown(record.replyTarget, formatQuestion(question, hint, true, progress), { keyboard });
           return;
         } catch (err) {
-          this.logger.warn(`zhoukai-qqbot: keyboard send failed, fallback to text: ${err instanceof Error ? err.message : String(err)}`);
+          this.logger.warn(`moyu-qqbot: keyboard send failed, fallback to text: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
       await this.sender.sendMarkdown(record.replyTarget, formatQuestion(question, hint, false, progress));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`zhoukai-qqbot: question send failed key=${record.sessionKey}: ${msg}`);
+      this.logger.error(`moyu-qqbot: question send failed key=${record.sessionKey}: ${msg}`);
       throw new Error(`failed to deliver question to QQ: ${msg}`);
     }
   }

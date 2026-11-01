@@ -68,7 +68,7 @@ export function registerSendCardTool(
 ): void {
   const tools = ctx.get('tools');
   if (!tools?.register) {
-    logger.warn?.('zhoukai-qqbot: tools 服务不可用，qqbot_send_card 工具未注册');
+    logger.warn?.('moyu-qqbot: tools 服务不可用，qqbot_send_card 工具未注册');
     return;
   }
   const definition = {
@@ -112,10 +112,10 @@ export function registerSendCardTool(
       }
       if (!replyTarget) throw new Error('qqbot_send_card: 无法确定发送目标，请显式传 target 参数');
       await deps.sendCard(replyTarget, validated.card);
-      logger.info?.(`zhoukai-qqbot: qqbot_send_card 「${validated.card.content.title}」→ ${replyTarget.scope}:${replyTarget.targetId}`);
+      logger.info?.(`moyu-qqbot: qqbot_send_card 「${validated.card.content.title}」→ ${replyTarget.scope}:${replyTarget.targetId}`);
       return { target: `${replyTarget.scope}:${replyTarget.targetId}` };
     },
   };
   tools.register(definition);
-  logger.info?.('zhoukai-qqbot: qqbot_send_card 工具已注册');
+  logger.info?.('moyu-qqbot: qqbot_send_card 工具已注册');
 }

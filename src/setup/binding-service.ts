@@ -136,7 +136,7 @@ export class BindingService {
         if (this.disposed) return null;
         const reason = err instanceof Error ? err.message : String(err);
         this.setPhase({ kind: 'failed', reason });
-        console.error(`[zhoukai-qqbot] 扫码绑定失败: ${reason}`);
+        console.error(`[moyu-qqbot] 扫码绑定失败: ${reason}`);
         return null;
       }
       if (this.disposed) return null;
@@ -196,7 +196,7 @@ export class BindingService {
     try {
       qrSvg = await this.renderQrFn(url);
     } catch (err) {
-      this.logger.warn(`zhoukai-qqbot: 二维码 SVG 渲染失败（页面将降级为链接）: ${err instanceof Error ? err.message : String(err)}`);
+      this.logger.warn(`moyu-qqbot: 二维码 SVG 渲染失败（页面将降级为链接）: ${err instanceof Error ? err.message : String(err)}`);
     }
     // 渲染期间可能已被 refresh/dispose 淘汰
     if (generation !== this.runId || this.disposed) return;

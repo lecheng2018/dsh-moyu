@@ -1,6 +1,6 @@
-# zhoukai-dsh-qqbot bundle patch (fork of tencent-connect/dsh-qqbot)
+# dsh-moyu bundle patch (fork of tencent-connect/dsh-qqbot)
 #
-# 当本包通过 `dsh plugin --profile <name> add @zhoukai/dsh-qqbot` 安装后，
+# 当本包通过 `dsh plugin --profile <name> add dsh-moyu` 安装后，
 # dsh 启动时自动加载此 patch。
 #
 # 环境变量：
@@ -9,10 +9,10 @@
 #
 # 叠加顺序：dsh-base → 本 bundle patch → profile cordis.patch.yml → --patch
 
-# ── 插入 zhoukai-qqbot 插件行 ──
+# ── 插入 moyu-qqbot 插件行 ──
 - insert:
-    - id: zhoukai-qqbot
-      name: '@zhoukai/dsh-qqbot'
+    - id: moyu-qqbot
+      name: 'dsh-moyu'
       config:
         appId: __FROM_ENV__
         appSecret: __FROM_ENV__

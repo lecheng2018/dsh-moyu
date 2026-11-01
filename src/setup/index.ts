@@ -67,7 +67,7 @@ export async function ensureCredentials(
   (ctx as unknown as { effect(fn: () => () => void, name?: string): void }).effect(() => () => {
     service.dispose();
     if (activeService === service) activeService = null;
-  }, 'zhoukai-qqbot.binding');
+  }, 'moyu-qqbot.binding');
 
   // 呈现策略：
   // - 终端通道（CLI / dsh web 运营者）；Desktop 无可见终端，跳过
@@ -99,7 +99,7 @@ export async function ensureCredentials(
     // 回调作用域（服务卸载/替换、插件卸载）连带注销路由
     (scoped as unknown as { effect(fn: () => () => void, name?: string): void }).effect(() => {
       return disposeRoutes;
-    }, 'zhoukai-qqbot.bind-routes');
+    }, 'moyu-qqbot.bind-routes');
   });
 
   return service.start();
@@ -124,7 +124,7 @@ export function registerBoundCredentialRoutes(ctx: Context, logger: Logger, appI
     });
     (scoped as unknown as { effect(fn: () => () => void, name?: string): void }).effect(() => {
       return disposeRoutes;
-    }, 'zhoukai-qqbot.bind-routes');
+    }, 'moyu-qqbot.bind-routes');
   });
 }
 

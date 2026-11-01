@@ -1,6 +1,6 @@
 {
-  "name": "@zhoukai/dsh-qqbot",
-  "version": "0.5.5-zhoukai.11",
+  "name": "dsh-moyu",
+  "version": "0.5.5-moyu.1",
   "icon": "./assets/icons/qq_logo.svg",
   "description": "在 QQ 私聊和群聊里直接对话 DeepSeek Harness。 Chat with DeepSeek Harness in QQ private and group chats.",
   "type": "module",

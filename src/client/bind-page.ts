@@ -1,7 +1,7 @@
 /**
  * 端内绑定面板 — 扫码 / 手动填写 / 已绑定编辑
  *
- * 宿主插件注册 /qqbot/zhoukai-qqbot/bind 路由（待绑定与已绑定 fiber 均常驻）：
+ * 宿主插件注册 /qqbot/moyu-qqbot/bind 路由（待绑定与已绑定 fiber 均常驻）：
  * - 未绑定：waiting（二维码）/ starting / saving / failed 相位 + manual 提交
  * - 已绑定：bound 相位（回显脱敏 appId，secret 不回传）+ manual 更换 + 解绑
  * 扫码成功或手动保存均写入 profile patch 并经 HMR 重载生效。
@@ -28,7 +28,7 @@ const ACTIVE_POLL_MS = 2000;
 const RETRY_POLL_MS = 3000;
 
 /** 样式注入标记（幂等） */
-const STYLE_ID = 'zhoukai-qqbot-bind-panel-styles';
+const STYLE_ID = 'moyu-qqbot-bind-panel-styles';
 
 /**
  * 注入面板样式（全局一次，幂等）。交互态（hover/active/focus）无法用 inline

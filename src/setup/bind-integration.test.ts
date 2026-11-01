@@ -33,7 +33,7 @@ const SHARED_PATCH = [
   '- id: ui-settings',
   '  config:',
   '    enabled: false',
-  '- id: zhoukai-qqbot',
+  '- id: moyu-qqbot',
   '  config:',
   '    requireMention: true',
   '- id: llm-deepseek',
@@ -92,7 +92,7 @@ async function invoke(route: WebRoute | undefined, req: IncomingMessage, res: Se
   await route.handler(req, res);
 }
 
-/** 共享断言：其他插件的内容完整保留（zhoukai-qqbot 自身字段会被各链路合法修改，不在此断言） */
+/** 共享断言：其他插件的内容完整保留（moyu-qqbot 自身字段会被各链路合法修改，不在此断言） */
 function expectSharedPreserved(patchPath: string): void {
   const after = readFileSync(patchPath, 'utf8');
   expect(after).toContain('# 宿主设置与其他插件条目，绑定链路不得破坏');
@@ -112,7 +112,7 @@ afterEach(() => {
 
 describe('绑定链路 × 真实 persist 落盘（#53 回归）', () => {
   it('手动绑定 → 配置保存 → 解绑：三操作全链路保留其他插件配置', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-bind-it-'));
+    dir = mkdtempSync(join(tmpdir(), 'moyu-qqbot-bind-it-'));
     patchPath = join(dir, 'cordis.patch.yml');
     writeFileSync(patchPath, SHARED_PATCH, 'utf8');
     profileDirState.dir = dir;
@@ -156,7 +156,7 @@ describe('绑定链路 × 真实 persist 落盘（#53 回归）', () => {
   });
 
   it('状态查询不触碰文件（GET 只读）', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-bind-it-'));
+    dir = mkdtempSync(join(tmpdir(), 'moyu-qqbot-bind-it-'));
     patchPath = join(dir, 'cordis.patch.yml');
     writeFileSync(patchPath, SHARED_PATCH, 'utf8');
     profileDirState.dir = dir;
@@ -170,7 +170,7 @@ describe('绑定链路 × 真实 persist 落盘（#53 回归）', () => {
   });
 
   it('配置保存（多字段批量）：全白名单字段落盘，其他插件保留', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-bind-cfg-'));
+    dir = mkdtempSync(join(tmpdir(), 'moyu-qqbot-bind-cfg-'));
     patchPath = join(dir, 'cordis.patch.yml');
     writeFileSync(patchPath, SHARED_PATCH, 'utf8');
     profileDirState.dir = dir;
@@ -209,7 +209,7 @@ describe('绑定链路 × 真实 persist 落盘（#53 回归）', () => {
     ['未知字段', '{"timeoutMs":100}'],
     ['类型错误（requireMention 传字符串）', '{"requireMention":"yes"}'],
   ])('配置保存拒绝：%s → 400 且文件不变', async (_name, body) => {
-    dir = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-bind-rej-'));
+    dir = mkdtempSync(join(tmpdir(), 'moyu-qqbot-bind-rej-'));
     patchPath = join(dir, 'cordis.patch.yml');
     writeFileSync(patchPath, SHARED_PATCH, 'utf8');
     profileDirState.dir = dir;
@@ -230,11 +230,11 @@ describe('绑定链路 × 真实 persist 落盘（#53 回归）', () => {
     const res = fakeRes();
     await invoke(routes.get(BIND_CONFIG_PATH), fakeReq('POST', '{"requireMention":false}'), res);
     expect(res.statusCode).toBe(500);
-    dir = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-bind-nodir-')); // 供 afterEach 清理
+    dir = mkdtempSync(join(tmpdir(), 'moyu-qqbot-bind-nodir-')); // 供 afterEach 清理
   });
 
   it('配置保存（幂等重放）：同值二次提交不重写文件', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-bind-idem-'));
+    dir = mkdtempSync(join(tmpdir(), 'moyu-qqbot-bind-idem-'));
     patchPath = join(dir, 'cordis.patch.yml');
     writeFileSync(patchPath, SHARED_PATCH, 'utf8');
     profileDirState.dir = dir;
@@ -256,7 +256,7 @@ describe('绑定链路 × 真实 persist 落盘（#53 回归）', () => {
   });
 
   it('配置保存（长 prompt）：超过 4KB 的请求体正常保存（#69）', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-bind-large-'));
+    dir = mkdtempSync(join(tmpdir(), 'moyu-qqbot-bind-large-'));
     patchPath = join(dir, 'cordis.patch.yml');
     writeFileSync(patchPath, SHARED_PATCH, 'utf8');
     profileDirState.dir = dir;
@@ -273,7 +273,7 @@ describe('绑定链路 × 真实 persist 落盘（#53 回归）', () => {
   });
 
   it('manual 请求体仍受 4KB 上限约束', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-bind-manual-cap-'));
+    dir = mkdtempSync(join(tmpdir(), 'moyu-qqbot-bind-manual-cap-'));
     patchPath = join(dir, 'cordis.patch.yml');
     writeFileSync(patchPath, SHARED_PATCH, 'utf8');
     profileDirState.dir = dir;
@@ -290,7 +290,7 @@ describe('绑定链路 × 真实 persist 落盘（#53 回归）', () => {
   });
 
   it('allowlist 大列表可保存（仅受 512KB body 上限约束）', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-bind-allow-'));
+    dir = mkdtempSync(join(tmpdir(), 'moyu-qqbot-bind-allow-'));
     patchPath = join(dir, 'cordis.patch.yml');
     writeFileSync(patchPath, SHARED_PATCH, 'utf8');
     profileDirState.dir = dir;
@@ -307,7 +307,7 @@ describe('绑定链路 × 真实 persist 落盘（#53 回归）', () => {
   });
 
   it('扫码链路：二维码 → 扫码成功 → 凭据落盘，多插件配置保留', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-bind-qr-'));
+    dir = mkdtempSync(join(tmpdir(), 'moyu-qqbot-bind-qr-'));
     patchPath = join(dir, 'cordis.patch.yml');
     writeFileSync(patchPath, SHARED_PATCH, 'utf8');
     profileDirState.dir = dir;

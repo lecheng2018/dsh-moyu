@@ -159,7 +159,7 @@ function createdIds(registry: { create: { mock: { calls: Array<[{ sessionId: str
 }
 
 beforeEach(() => {
-  env.home = mkdtempSync(join(tmpdir(), 'zhoukai-qqbot-session-'));
+  env.home = mkdtempSync(join(tmpdir(), 'moyu-qqbot-session-'));
   mkdirSync(join(env.home, 'workspace'), { recursive: true });
 });
 

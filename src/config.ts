@@ -64,6 +64,25 @@ export interface ProactiveConfig {
   wakeup: boolean;
 }
 
+/** 发言走工具：AI 用 qq_send 分条发言 / qq_close 明确收尾 */
+export interface QqSendConfig {
+  /** 是否启用；开启后单聊流式自动关闭（二者抢同一条消息通道） */
+  enabled: boolean;
+  /** 单轮 qq_send 最多条数（1-5，平台被动回复每条消息最多 5 次，默认留余量） */
+  maxParts: number;
+}
+
+/** 对话收尾状态（仅私聊）：qq_close 记录「收在哪/下次怎么接」 */
+export interface ClosingSettings {
+  enabled: boolean;
+  /** 收尾记录保留天数（太旧的「上次聊到」接上去反而怪） */
+  ttlDays: number;
+  /** 收尾后不主动搭话的冷却分钟数（刚说完晚安十分钟后又冒出来最假） */
+  coolMinutes: number;
+  /** 最多保留多少个会话的收尾记录 */
+  maxChats: number;
+}
+
 export interface ImQQBotConfig {
   /** QQ Bot AppID */
   appId: string;
@@ -111,6 +130,10 @@ export interface ImQQBotConfig {
   sendFile: SendFileConfig;
   /** 主动消息每日配额（被动回复不受限） */
   proactive: ProactiveConfig;
+  /** 发言走工具（qq_send 分条 / qq_close 收尾） */
+  qqSend: QqSendConfig;
+  /** 对话收尾状态（仅私聊） */
+  closing: ClosingSettings;
 }
 
 /** 访问控制子 Schema（独立导出：config 路由的服务端校验复用） */
@@ -194,4 +217,22 @@ export const ConfigSchema: Schema<ImQQBotConfig> = Schema.object({
     perTargetDaily: 20,
     wakeup: true,
   }).description('主动消息配置'),
+  qqSend: Schema.object({
+    enabled: Schema.boolean().default(true).description('发言走工具:AI 用 qq_send 分条发言、qq_close 收尾;开启后单聊流式自动关闭(二者抢同一消息通道)'),
+    maxParts: Schema.number().default(3).description('单轮 qq_send 最多条数(1-5;平台被动回复每条消息最多 5 次,默认留余量)'),
+  }).default({
+    enabled: true,
+    maxParts: 3,
+  }).description('发言走工具'),
+  closing: Schema.object({
+    enabled: Schema.boolean().default(true).description('对话收尾状态(仅私聊):qq_close 记录「收在哪/下次怎么接」,记录期内每次对话自动注入衔接'),
+    ttlDays: Schema.number().default(7).description('收尾记录保留天数'),
+    coolMinutes: Schema.number().default(90).description('收尾后不主动搭话的冷却分钟数(以提示方式约束)'),
+    maxChats: Schema.number().default(200).description('最多保留的会话收尾记录数'),
+  }).default({
+    enabled: true,
+    ttlDays: 7,
+    coolMinutes: 90,
+    maxChats: 200,
+  }).description('对话收尾'),
 });

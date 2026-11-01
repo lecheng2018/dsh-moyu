@@ -129,6 +129,12 @@ export interface SessionRecord {
   senderId: string;
   lastActivity: number;
   agentPreset?: string;
+  /** 本轮(当前这条用户消息触发)是否已用 qq_send 发过言:outbound 据此压制 turn 末尾正文,防双发 */
+  qqSendUsedThisTurn?: boolean;
+  /** 本轮已发的 qq_send 条数(上限 maxParts,对齐平台被动回复 5 次限制) */
+  turnQqSendCount?: number;
+  /** 最近一条用户消息原文(qq_close 判断「对方还在提问」用) */
+  lastUserText?: string;
 }
 
 /** 会话状态信息（/status 用） */

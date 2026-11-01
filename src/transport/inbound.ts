@@ -126,6 +126,11 @@ export async function handleInbound(
     return;
   }
 
+  // 每条用户消息 = 新的一轮：重置发言工具状态，记录原文（qq_close 的「对方在提问」判定用）
+  record.lastUserText = agentBody;
+  record.turnQqSendCount = 0;
+  record.qqSendUsedThisTurn = false;
+
   // ── 构建 UserMessage → followup ──
   const content: ContentBlock[] = [{ type: 'text' as const, text: agentBody }];
 

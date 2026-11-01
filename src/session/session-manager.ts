@@ -120,6 +120,8 @@ export class SessionManager {
   public proactiveQueue?: ProactiveQueue;
   /** 由 bootstrap 注入的单聊主动消息开关感知（C2C_MSG_REJECT/RECEIVE） */
   public proactivePermission?: import('../features/proactive-permission.ts').ProactivePermission;
+  /** 由 bootstrap 注入的对话收尾状态（qq_close 写入，system prompt 注入衔接） */
+  public closingStore?: import('../features/closing.ts').ClosingStore;
   /** 由 bootstrap 注入的运行时元信息（/bot-status 健康面板用） */
   public memeRoots: string[] = [];
 
@@ -179,6 +181,20 @@ export class SessionManager {
       if (prompt) {
         sections.push({ name: 'qqbot:scope-prompt', order: 90, text: prompt });
       }
+      // 对话收尾衔接（私聊）：上次「收在哪/下次怎么接」还新鲜时注入，接得上
+      if (this.closingStore && record.scope === 'c2c') {
+        const rec = this.closingStore.get(record.sessionKey);
+        if (rec) {
+          const mins = Math.max(0, Math.round((Date.now() - rec.closedAt) / 60000));
+          const cooling = this.closingStore.isCooling(record.sessionKey);
+          sections.push({
+            name: 'qqbot:closing',
+            order: 92,
+            text: `上一次对话的收尾记录(${mins} 分钟前):${rec.note || '(对方道别)' }。自然衔接这个话题线即可,不要把这条记录当寒暄理由反复提起。${cooling ? '对方刚道别不久,冷却期内不要主动搭话。' : ''}`,
+          });
+        }
+      }
+
       // 主动推送策略提示：让模型知道优先级与剩余额度，不轻易做兑现不了的承诺
       if (this.proactiveBudget) {
         const snap = this.proactiveBudget.snapshot(record.scope, record.peerId);

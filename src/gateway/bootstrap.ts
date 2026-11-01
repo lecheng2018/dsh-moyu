@@ -22,6 +22,8 @@ import { discoverMemeRoots, seedMemeDefaults } from '../features/meme-bridge.ts'
 import { ProactiveBudget } from '../transport/proactive-budget.ts';
 import { ProactiveQueue } from '../transport/proactive-queue.ts';
 import { ProactivePermission } from '../features/proactive-permission.ts';
+import { ClosingStore } from '../features/closing.ts';
+import { registerQqSendTools } from '../features/qq-send-tools.ts';
 import { PLUGIN_HOME } from '../shared/dirs.ts';
 import { buildUserAgent } from '../shared/index.ts';
 import type { ImQQBotConfig } from '../config.ts';
@@ -66,6 +68,8 @@ export async function bootstrapGateway(
   const effectiveConfig: ImQQBotConfig = {
     ...config,
     sendFile: { ...config.sendFile, extraRoots: [...config.sendFile.extraRoots, ...memeRoots] },
+    // qq_send 分条发言与流式输出抢同一消息通道：工具模式开启时单聊流式自动关闭
+    streaming: config.streaming && !config.qqSend.enabled,
   };
 
   const manager = new SessionManager(ctx, agents, effectiveConfig, logger);
@@ -139,6 +143,11 @@ export async function bootstrapGateway(
     ? new ProactivePermission(resolve(PLUGIN_HOME, 'proactive-permission.json'), logger)
     : undefined;
   manager.proactivePermission = proactivePermission;
+  // 对话收尾状态（qq_close 写入，system prompt 注入衔接；仅私聊语义）
+  const closingStore = config.closing.enabled
+    ? new ClosingStore(resolve(PLUGIN_HOME, 'closing.json'), config.closing, logger)
+    : undefined;
+  manager.closingStore = closingStore;
   const gateProactive = <T>(
     target: ReplyTarget,
     resolved: ReplyTarget,
@@ -321,6 +330,16 @@ export async function bootstrapGateway(
 
   // ── 附件发送工具注册（qqbot_send_file，发送器见上方 mediaSender） ──
   registerSendFileTool(ctx, mediaSender, manager, effectiveConfig, logger);
+
+  // ── 发言走工具注册（qq_send 分条 / qq_close 收尾；开启后流式已自动关闭） ──
+  if (effectiveConfig.qqSend.enabled) {
+    registerQqSendTools(ctx, {
+      manager,
+      send: (target, text) => sender.sendMarkdown(target, text),
+      maxParts: effectiveConfig.qqSend.maxParts,
+      closing: effectiveConfig.closing.enabled ? closingStore : undefined,
+    }, logger);
+  }
 
   // ── 图文卡片工具注册（qqbot_send_card，msg_type=8） ──
   // 发送路径与文本一致：被动窗口内带 msg_id（免费）；主动时过互动召回/预算闸门，被拦抛错给模型

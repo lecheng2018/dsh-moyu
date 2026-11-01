@@ -180,6 +180,14 @@ class OutboundRouter {
 
   /** 完整 assistant 消息：有流式 buffer 则 flush，否则直接发送文本块 */
   private onMessage(sessionId: string, record: SessionRecord, event: MessageEvent): void {
+    // 本轮用过 qq_send：模型已分条发言，turn 末尾正文压掉（否则同一内容发两遍）。
+    // 模型被告知「调了 qq_send 就别重复正文」——这里兜底执行。
+    if (record.qqSendUsedThisTurn) {
+      this.logger.debug(`zhoukai-qqbot: assistant text suppressed (qq_send used) sessionId=${sessionId}`);
+      this.buffers.get(sessionId)?.cancel();
+      this.buffers.delete(sessionId);
+      return;
+    }
     const buffer = this.buffers.get(sessionId);
     if (buffer !== undefined && buffer.text.trim()) {
       this.trackText(sessionId, buffer.flush());
@@ -251,7 +259,11 @@ class OutboundRouter {
     const buffer = this.buffers.get(sessionId);
     // 文本 flush 可等待，保证回复先于交付文件到达用户
     let flushTask: Promise<void> = Promise.resolve();
-    if (buffer !== undefined) {
+    if (record.qqSendUsedThisTurn) {
+      // qq_send 已分条发言：turn 末尾正文压制（同 onMessage），只清状态
+      buffer?.cancel();
+      this.buffers.delete(sessionId);
+    } else if (buffer !== undefined) {
       if (buffer.text.trim()) {
         flushTask = buffer.flush();
       } else {

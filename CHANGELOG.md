@@ -2,6 +2,11 @@
 
 > [English](./CHANGELOG_EN.md)
 
+## [0.5.5-moyu.2] - 2026-11-01
+
+### 修复/诊断
+- **提问投递链路全量可观测**:路由决策(agent→QQ/Web)、键盘/文本投递结果、平台响应(捕获 304023/304024 异步审核——「发送成功但用户看不到」的头号嫌疑)全部落 harness.log(console 直写,cordis logger 不落盘)
+- 问答/审批通道 logger 改为 console 直写 trace
 ## [0.5.5-moyu.1] - 2026-11-01
 
 ### 变更

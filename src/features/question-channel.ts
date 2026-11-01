@@ -141,6 +141,8 @@ export class QuestionChannel {
     uq.ask = async function qqRoutedAsk(request: UserQuestionRequest): Promise<UserQuestionResult> {
       const sessionId = request?.agent?.id;
       const record = sessionId ? self.manager.findBySessionId(sessionId) : undefined;
+      // 路由决策可见化:线上排障「问题只出现在网页不出现在 QQ」的关键证据
+      self.logger.info(`question routing: agent=${sessionId ?? '(none)'} → ${record ? `QQ 通道(${record.sessionKey})` : '宿主/Web(未托管会话)'}`);
       if (record) return self.askViaQQ(record, request);
       return self.origAsk!(request);
     };
@@ -289,15 +291,19 @@ export class QuestionChannel {
     const hint = record.scope === 'group' && this.config.requireMention === true;
     const keyboard = buildKeyboard(question);
     try {
+      let resp: unknown;
       if (keyboard) {
         try {
-          await this.sender.sendMarkdown(record.replyTarget, formatQuestion(question, hint, true, progress), { keyboard });
+          resp = await this.sender.sendMarkdown(record.replyTarget, formatQuestion(question, hint, true, progress), { keyboard });
+          // 平台异步审核(304023/304024)会「发送成功但用户看不到」——必须留痕
+          this.logger.info(`moyu-qqbot: question(键盘)已投递 key=${record.sessionKey} resp=${JSON.stringify(resp ?? null).slice(0, 200)}`);
           return;
         } catch (err) {
           this.logger.warn(`moyu-qqbot: keyboard send failed, fallback to text: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
-      await this.sender.sendMarkdown(record.replyTarget, formatQuestion(question, hint, false, progress));
+      resp = await this.sender.sendMarkdown(record.replyTarget, formatQuestion(question, hint, false, progress));
+      this.logger.info(`moyu-qqbot: question(文本)已投递 key=${record.sessionKey} resp=${JSON.stringify(resp ?? null).slice(0, 200)}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`moyu-qqbot: question send failed key=${record.sessionKey}: ${msg}`);

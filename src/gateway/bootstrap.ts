@@ -285,12 +285,19 @@ export async function bootstrapGateway(
     }, { global: true });
 
   // ── 问答通道（ask_user_question → QQ 文本 + 按钮） ──
-  const questionChannel = new QuestionChannel(manager, sender, effectiveConfig, logger);
+  // cordis logger 的输出不落 harness.log;问答/审批的投递链路用 console 直写保证可见
+  const traceLogger: Logger = {
+    info: (...a: unknown[]) => console.log('[moyu-qqbot:trace]', ...a),
+    warn: (...a: unknown[]) => console.warn('[moyu-qqbot:trace]', ...a),
+    error: (...a: unknown[]) => console.error('[moyu-qqbot:trace]', ...a),
+    debug: (...a: unknown[]) => console.debug('[moyu-qqbot:trace]', ...a),
+  };
+  const questionChannel = new QuestionChannel(manager, sender, effectiveConfig, traceLogger);
   manager.questionChannel = questionChannel;
   questionChannel.install(ctx);
 
   // ── 审批通道（approval/request → QQ 两按钮审批） ──
-  const approvalChannel = new ApprovalChannel(manager, sender, effectiveConfig, logger);
+  const approvalChannel = new ApprovalChannel(manager, sender, effectiveConfig, traceLogger);
   manager.approvalChannel = approvalChannel;
   approvalChannel.install(ctx as unknown as ApprovalChannelContext);
 

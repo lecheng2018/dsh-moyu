@@ -118,5 +118,16 @@
     "tsdown": "^0.22.2",
     "typescript": "^5.5.0",
     "vitest": "^4.1.8"
-  }
+  },
+  "files": [
+    "lib",
+    "locale",
+    "assets",
+    "cordis.patch.yml",
+    "cordis.yml",
+    "README.md",
+    "README_EN.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ]
 }
